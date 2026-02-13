@@ -12,6 +12,11 @@
 .swiftpm/
 migrate_working_dir/
 
+.dart_tool/
+build/
+.idea/
+.pub-cache/
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -32,6 +37,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+pubspec.lock
 
 # Symbolication related
 app.*.symbols

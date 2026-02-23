@@ -12,8 +12,7 @@
 
 <br/>
 
-> A Flutter-based health app that analyzes packaged food products and delivers a **personalized suitability verdict** based on your unique health profile, goals, and conditions.
-
+> A preventive health-focused **food intelligence system** that evaluates packaged food suitability using **personalized** health profiles.
 <br/>
 
 ---

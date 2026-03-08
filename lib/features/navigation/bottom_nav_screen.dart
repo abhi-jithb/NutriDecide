@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../home/home_screen.dart';
-import '../scan/scan_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
 
 class BottomNavScreen extends StatefulWidget {
+  const BottomNavScreen({super.key});
+
   @override
   _BottomNavScreenState createState() => _BottomNavScreenState();
 }
@@ -12,28 +13,40 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int _index = 0;
 
-  final screens = [
-    HomeScreen(),
-    ScanScreen(),
+  final List<Widget> _screens = [
+    const HomeScreen(),
     ProfileScreen(),
-    SettingsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: screens[_index],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        type: BottomNavigationBarType.fixed,
-        onTap: (value) {
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (value) {
           setState(() => _index = value);
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon:   Icon(Icons.camera_alt), label: "Scan"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Settings"),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: "Home",
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: "Profile",
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: "Settings",
+          ),
         ],
       ),
     );

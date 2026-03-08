@@ -2,187 +2,224 @@ import 'package:flutter/material.dart';
 import '../../../app.dart';
 
 class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool isDarkMode = false;
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(
+        title: const Text("Preferences & Settings"),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         children: [
+          _buildSubscriptionBanner(theme),
+          const SizedBox(height: 24),
 
-          _sectionTitle("Account"),
-          _settingsTile(
-            icon: Icons.lock_outline,
-            title: "Change Password",
-            onTap: () {},
+          _sectionHeader("App Customization"),
+          _settingsSwitch(
+            title: "Dark Mode",
+            subtitle: "Switch between light and dark themes",
+            icon: Icons.dark_mode_outlined,
+            value: theme.brightness == Brightness.dark,
+            onChanged: (val) => MyApp.of(context)?.toggleTheme(val),
           ),
-          _settingsTile(
-            icon: Icons.logout,
-            title: "Logout",
-            onTap: () {},
-          ),
-          _settingsTile(
-            icon: Icons.delete_outline,
-            title: "Delete Account",
-            isDestructive: true,
-            onTap: () {
-              _showDeleteDialog(context);
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          _sectionTitle("Data & Privacy"),
-          _settingsTile(
-            icon: Icons.download,
-            title: "Export My Data",
-            subtitle: "Download profile and logs",
-            onTap: () {},
-          ),
-          _settingsTile(
-            icon: Icons.delete_sweep,
-            title: "Delete All Logs",
-            onTap: () {},
-          ),
-          _settingsTile(
-            icon: Icons.privacy_tip_outlined,
-            title: "Privacy Policy",
-            onTap: () {},
-          ),
-          _settingsTile(
-            icon: Icons.description_outlined,
-            title: "Terms & Conditions",
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 20),
-
-          _sectionTitle("Permissions"),
-          _settingsTile(
-            icon: Icons.camera_alt_outlined,
-            title: "Camera Permission",
-            subtitle: "Required for scanning",
-            trailing: const Icon(Icons.check_circle, color: Colors.green),
-            onTap: () {},
-          ),
-          _settingsTile(
-            icon: Icons.notifications_outlined,
-            title: "Notifications",
-            subtitle: "Meal reminders & updates",
-            trailing: const Icon(Icons.check_circle, color: Colors.green),
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 20),
-
-          _sectionTitle("Subscription"),
-          _subscriptionCard(context),
-
-          const SizedBox(height: 20),
-
-          _sectionTitle("App Preferences"),
-          SwitchListTile(
-            value: isDarkMode,
-            title: const Text("Dark Mode"),
-            onChanged: (value) {
-              setState(() {
-                isDarkMode = value;
-              });
-              MyApp.of(context)?.toggleTheme(value);
-            },
-          ),
-          SwitchListTile(
+          _settingsSwitch(
+            title: "Health Alerts",
+            subtitle: "Real-time warnings on risky scans",
+            icon: Icons.notifications_active_outlined,
             value: true,
             onChanged: (val) {},
-            title: const Text("Enable Notifications"),
+          ),
+          
+          const SizedBox(height: 24),
+          _sectionHeader("Account & Security"),
+          _settingsActionTile(
+            title: "Manage Health Profile",
+            subtitle: "Update allergies, conditions & metrics",
+            icon: Icons.health_and_safety_outlined,
+            onTap: () {},
+          ),
+          _settingsActionTile(
+            title: "Security Settings",
+            subtitle: "Change password & biometrics",
+            icon: Icons.lock_person_outlined,
+            onTap: () {},
+          ),
+          _settingsActionTile(
+            title: "Sign Out",
+            icon: Icons.logout_rounded,
+            isDestructive: true,
+            onTap: () {},
+          ),
+
+          const SizedBox(height: 24),
+          _sectionHeader("Data Transparency"),
+          _settingsActionTile(
+            title: "Privacy Center",
+            subtitle: "Control how your health data is used",
+            icon: Icons.privacy_tip_outlined,
+            onTap: () {},
+          ),
+          _settingsActionTile(
+            title: "Export Health Data",
+            subtitle: "Download your scan history PDF",
+            icon: Icons.file_download_outlined,
+            onTap: () {},
+          ),
+          
+          const SizedBox(height: 32),
+          const Center(
+            child: Text(
+              "NutriDecide v1.2.0 • Build 246",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey.withOpacity(0.8),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionBanner(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withOpacity(0.7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "GO PREMIUM",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              Icon(Icons.star_rounded, color: Colors.amber, size: 32),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Unlock detailed additive analysis and personalized meal planners.",
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: theme.colorScheme.primary,
+              minimumSize: const Size(120, 45),
+            ),
+            child: const Text("UPGRADE NOW"),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _settingsTile({
-    required IconData icon,
+  Widget _settingsActionTile({
     required String title,
     String? subtitle,
-    Widget? trailing,
-    bool isDestructive = false,
+    required IconData icon,
     required VoidCallback onTap,
+    bool isDestructive = false,
   }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    final color = isDestructive ? Colors.red : Theme.of(context).colorScheme.primary;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: ListTile(
-        leading: Icon(icon, color: isDestructive ? Colors.red : Colors.green),
+        onTap: onTap,
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
         title: Text(
           title,
-          style: TextStyle(color: isDestructive ? Colors.red : Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: isDestructive ? Colors.red : null,
+          ),
         ),
-        subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+        subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
       ),
     );
   }
 
-  Widget _subscriptionCard(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Free Plan",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text("Upgrade to Premium for advanced analysis."),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text("Upgrade"),
-            ),
-          ],
-        ),
+  Widget _settingsSwitch({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
       ),
-    );
-  }
-
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Delete Account"),
-        content: const Text("This action cannot be undone. Are you sure?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        secondary: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          TextButton(
-            onPressed: () {},
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        activeColor: color,
       ),
     );
   }

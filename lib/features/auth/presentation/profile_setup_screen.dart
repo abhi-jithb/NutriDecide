@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../navigation/bottom_nav_screen.dart';
+import '../../profile/models/user_profile.dart';
+import '../../profile/data/profile_repository.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   @override
@@ -140,13 +142,31 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 30),
 
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BottomNavScreen(),
-                    ),
+                onPressed: () async {
+                  final profile = UserProfile(
+                    height: double.tryParse(heightController.text) ?? 0,
+                    weight: double.tryParse(weightController.text) ?? 0,
+                    gender: selectedGender ?? '',
+                    goal: selectedGoal ?? '',
+                    targetWeight: double.tryParse(targetWeightController.text) ?? 0,
+                    activityLevel: selectedActivity ?? '',
+                    dietType: selectedDiet ?? '',
+                    hasDiabetes: diabetes,
+                    hasHypertension: hypertension,
+                    hasPcos: pcos,
+                    allergies: [], // TODO: Add allergy selection UI
                   );
+
+                  await ProfileRepository().saveProfile(profile);
+
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BottomNavScreen(),
+                      ),
+                    );
+                  }
                 },
                 child: const Text("Finish Setup"),
               ),

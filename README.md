@@ -37,6 +37,34 @@ Instead of only showing calories and macros, it:
 
 ---
 
+## 🏗️ Getting Started
+
+### 1️⃣ Clone the Repository
+
+```bash
+git clone https://github.com/abhi-jithb/NutriDecide.git
+cd NutriDecide
+```
+
+### 2️⃣ Install Dependencies
+
+```bash
+flutter pub get
+cd backend && npm install
+```
+
+### 3️⃣ Run the App
+
+```bash
+# Start backend
+cd backend && npm run dev
+
+# Run Flutter app
+flutter run
+```
+
+---
+
 ## 🧠 Core Concept
 
 ```

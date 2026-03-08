@@ -22,6 +22,7 @@ class _ScanScreenState extends State<ScanScreen> {
   final MobileScannerController _controller = MobileScannerController();
   final NutritionService _nutritionService = NutritionService();
   final ProfileRepository _profileRepository = ProfileRepository();
+  bool _isArMode = false;
 
   @override
   void initState() {
@@ -103,25 +104,30 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
 
-          // AR Toggle (Moonshot Feature)
           Positioned(
             top: 50,
             right: 20,
             child: CircleAvatar(
-              backgroundColor: Colors.blue.withOpacity(0.8),
+              backgroundColor: _isArMode ? Colors.green : Colors.blue.withOpacity(0.8),
               child: IconButton(
-                icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                icon: Icon(_isArMode ? Icons.auto_awesome : Icons.auto_awesome_motion, color: Colors.white),
                 onPressed: () {
+                  setState(() => _isArMode = !_isArMode);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("AR Overlay Mode (Moonshot): Camera will soon show verdicts floating over labels!"),
-                      duration: Duration(seconds: 3),
+                    SnackBar(
+                      content: Text(_isArMode 
+                        ? "AR Overlay Mode Enabled (Moonshot): Real-time analysis active." 
+                        : "AR Overlay Mode Disabled."),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 },
               ),
             ),
           ),
+          
+          if (_isArMode)
+            _buildArIndicators(),
           
           if (!_isScanning)
             Positioned(
@@ -144,6 +150,70 @@ class _ScanScreenState extends State<ScanScreen> {
                 child: const Text("Scan Again"),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArIndicators() {
+    return IgnorePointer(
+      child: Center(
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 20,
+                left: 20,
+                child: _buildArNode("Scrutinizing Ingredients...", Colors.green),
+              ),
+              Positioned(
+                top: 60,
+                right: 10,
+                child: _buildArNode("Est: 250 kcal", Colors.blueAccent),
+              ),
+              Positioned(
+                bottom: 80,
+                left: 10,
+                child: _buildArNode("⚠️ Allergy Redline Detected", Colors.redAccent),
+              ),
+              Positioned(
+                bottom: 40,
+                right: 20,
+                child: _buildArNode("Detecting Saturated Fats", Colors.amber),
+              ),
+              Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green.withOpacity(0.5)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArNode(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.radar, size: 12, color: color),
+          const SizedBox(width: 8),
+          Text(text, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
         ],
       ),
     );

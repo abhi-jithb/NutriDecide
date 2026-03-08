@@ -38,6 +38,8 @@ class RegionalFoodService {
       'curry': 'curry',
       'chicken curry': 'chicken curry',
       'fish curry': 'fish curry',
+      'beef curry': 'beef fry',
+      'beef fry': 'beef fry',
     };
 
     // Clean query (Preserve 'and' for splitting)
@@ -76,17 +78,24 @@ class RegionalFoodService {
   }
 
   Future<NutritionData?> _searchSingleFood(String query, Map<String, String> synonyms) async {
+    // Check if the whole query has a synonym (like 'beef curry' -> 'beef fry')
+    final mappedQuery = synonyms[query] ?? query;
+    
     // Final clean for individual food name
-    String cleaned = query.replaceAll('and', '').trim();
+    String cleaned = mappedQuery.replaceAll('and', '').trim();
     
     // Split into words
     final words = cleaned.split(' ').where((w) => w.length >= 3).toList();
     
-    print('Searching single food: "$cleaned" (words: $words)');
+    print('Searching single food: "$cleaned" (mapped from "$query") (words: $words)');
 
-    // 1. Try full cleaned string
-    NutritionData? result = await _fetchFromApi(cleaned);
-    if (result != null) return result;
+    // 1. Try fetching potential matches from API
+    List<NutritionData> apiResults = await _fetchFromApi(cleaned);
+    if (apiResults.isNotEmpty) {
+      // Use the best match logic on API results
+      NutritionData? best = _findBestMatch(apiResults, words);
+      if (best != null) return best;
+    }
 
     // 2. Try each word and its variations
     for (var word in words) {
@@ -107,8 +116,11 @@ class RegionalFoodService {
       }
 
       for (var variant in variants.toSet()) {
-        result = await _fetchFromApi(variant);
-        if (result != null) return result;
+        List<NutritionData> variantResults = await _fetchFromApi(variant);
+        if (variantResults.isNotEmpty) {
+          NutritionData? best = _findBestMatch(variantResults, words);
+          if (best != null) return best;
+        }
       }
     }
 
@@ -117,20 +129,42 @@ class RegionalFoodService {
     // 3. Last Resort: Fetch ALL and match locally (Substring match on names)
     try {
       final allFoods = await _fetchAll();
-      for (var food in allFoods) {
-        final name = food.productName.toLowerCase();
-        for (var word in words) {
-          if (name.contains(word) || word.contains(name)) {
-            print('Fuzzy local match found: ${food.productName}');
-            return food;
-          }
-        }
-      }
+      return _findBestMatch(allFoods, words);
     } catch (e) {
       print('Local fuzzy match failed: $e');
     }
 
     print('No regional food found for query: "$query"');
+    return null;
+  }
+
+  NutritionData? _findBestMatch(List<NutritionData> candidates, List<String> queryWords) {
+    NutritionData? bestMatch;
+    int maxMatchedWords = 0;
+
+    for (var food in candidates) {
+      final name = food.productName.toLowerCase();
+      int matchedWords = 0;
+      
+      for (var word in queryWords) {
+        // Skip extremely generic words for fuzzy matching
+        if (['curry', 'rice', 'fry', 'style', 'kerala'].contains(word)) continue;
+        
+        if (name.contains(word) || word.contains(name)) {
+          matchedWords++;
+        }
+      }
+
+      if (matchedWords > maxMatchedWords) {
+        maxMatchedWords = matchedWords;
+        bestMatch = food;
+      }
+    }
+    
+    if (bestMatch != null && maxMatchedWords > 0) {
+      print('Best match found: ${bestMatch.productName} (Score: $maxMatchedWords)');
+      return bestMatch;
+    }
     return null;
   }
 
@@ -156,8 +190,8 @@ class RegionalFoodService {
     return [];
   }
 
-  Future<NutritionData?> _fetchFromApi(String q) async {
-    if (q.isEmpty) return null;
+  Future<List<NutritionData>> _fetchFromApi(String q) async {
+    if (q.isEmpty) return [];
     try {
       final encodedQuery = Uri.encodeComponent(q);
       final response = await http.get(
@@ -166,21 +200,18 @@ class RegionalFoodService {
       
       if (response.statusCode == 200) {
         final List results = json.decode(response.body);
-        if (results.isNotEmpty) {
-          final data = results.first;
-          return NutritionData(
-            productName: data['name'],
-            ingredients: List<String>.from(data['ingredients']),
-            nutrients: Map<String, dynamic>.from(data['nutrients']),
-            categories: List<String>.from(data['categories']),
-            imageUrl: data['imageUrl'],
-          );
-        }
+        return results.map((data) => NutritionData(
+          productName: data['name'],
+          ingredients: List<String>.from(data['ingredients']),
+          nutrients: Map<String, dynamic>.from(data['nutrients']),
+          categories: List<String>.from(data['categories']),
+          imageUrl: data['imageUrl'],
+        )).toList();
       }
     } catch (e) {
       print('Error searching regional food: $e');
     }
-    return null;
+    return [];
   }
 
   // Voice estimation logic for portions

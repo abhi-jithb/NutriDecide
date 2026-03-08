@@ -29,7 +29,7 @@ Instead of only showing calories and macros, it:
 
 - 📸 Scans food labels or barcodes
 - 🎙️ **New:** Log regional street foods via Voice AI
-- 🔬 Analyzes nutritional data in real-time
+- 🔬 **Regional Analysis:** Backend-driven tracking for foods that lack universal barcodes.
 - 🔗 Cross-references with your personal health profile
 - 🎯 Delivers an instant verdict → **Good / Caution / Avoid**
 
@@ -169,6 +169,13 @@ A detailed breakdown of the codebase and its responsibilities:
 > 
 > **Tech Stack:** Flutter (Premium Theme), Node.js/Express Backend, MongoDB, `speech_to_text`, `mobile_scanner`, and Open Food Facts API.
 > 
+>### **V1.3: The Innovation Leap (Current)**
+- **Backend Integration:** Connected to a live Node.js/MongoDB cluster for regional data.
+- **Voice Food Logging:** Users talk to the app to log traditional meals.
+- **AI Coaching:** The `PatternCoachService` provides deep behavioral insights (e.g., "Sunday Sodium Spike").
+- **Swap Engine:** Proactive suggestions for "Better Alternatives" using category-based API searches.
+- **Moonshot AR (Conceptual):** A UI-driven simulation of real-time label analysis, demonstrating the vision for barcode-free scanning in future releases.
+
 > **Current State:**
 > - **Inference Engine:** Fully functional in `nutrition_service.dart`.
 > - **Voice Logging:** Users can log regional foods via voice; data is fetched from the MongoDB backend.

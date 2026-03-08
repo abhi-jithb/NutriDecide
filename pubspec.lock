@@ -109,10 +109,10 @@ packages:
     dependency: "direct main"
     description:
       name: fl_chart
-      sha256: "00b74ae680df6b1135bdbea00a7d1fc072a9180b7c3f3702e4b19a9943f5ed7d"
+      sha256: "7ca9a40f4eb85949190e54087be8b4d6ac09dc4c54238d782a34cf1f7c011de9"
       url: "https://pub.dev"
     source: hosted
-    version: "0.66.2"
+    version: "1.1.1"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -148,10 +148,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_fonts
-      sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
+      sha256: db9df7a5898d894eeda4c78143f35c30a243558be439518972366880b80bf88e
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.3"
+    version: "8.0.2"
   hooks:
     dependency: transitive
     description:
@@ -180,18 +180,10 @@ packages:
     dependency: "direct main"
     description:
       name: intl
-      sha256: d6f56758b7d3014a48af9701c085700aac781a92a87a62b1333b46d8879661cf
+      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
       url: "https://pub.dev"
     source: hosted
-    version: "0.19.0"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: "53385261521cc4a0c4658fd0ad07a7d14591cf8fc33abbceae306ddb974888dc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.2"
+    version: "0.20.2"
   json_annotation:
     dependency: transitive
     description:
@@ -276,10 +268,10 @@ packages:
     dependency: "direct main"
     description:
       name: mobile_scanner
-      sha256: "1b60b8f9d4ce0cb0e7d7bc223c955d083a0737bee66fa1fcfe5de48225e0d5b3"
+      sha256: c92c26bf2231695b6d3477c8dcf435f51e28f87b1745966b1fe4c47a286171ce
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.7"
+    version: "7.2.0"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -364,18 +356,18 @@ packages:
     dependency: "direct main"
     description:
       name: permission_handler
-      sha256: "59adad729136f01ea9e35a48f5d1395e25cba6cea552249ddbe9cf950f5d7849"
+      sha256: bc917da36261b00137bbc8896bf1482169cd76f866282368948f032c8c1caae1
       url: "https://pub.dev"
     source: hosted
-    version: "11.4.0"
+    version: "12.0.1"
   permission_handler_android:
     dependency: transitive
     description:
       name: permission_handler_android
-      sha256: d3971dcdd76182a0c198c096b5db2f0884b0d4196723d21a866fc4cdea057ebc
+      sha256: "1e3bc410ca1bf84662104b100eb126e066cb55791b7451307f9708d4007350e6"
       url: "https://pub.dev"
     source: hosted
-    version: "12.1.0"
+    version: "13.0.1"
   permission_handler_apple:
     dependency: transitive
     description:
@@ -513,18 +505,10 @@ packages:
     dependency: "direct main"
     description:
       name: speech_to_text
-      sha256: "97425fd8cc60424061a0584b6c418c0eedab5201cc5e96ef15a946d7fab7b9b7"
+      sha256: c07557664974afa061f221d0d4186935bea4220728ea9446702825e8b988db04
       url: "https://pub.dev"
     source: hosted
-    version: "6.6.2"
-  speech_to_text_macos:
-    dependency: transitive
-    description:
-      name: speech_to_text_macos
-      sha256: e685750f7542fcaa087a5396ee471e727ec648bf681f4da83c84d086322173f6
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
+    version: "7.3.0"
   speech_to_text_platform_interface:
     dependency: transitive
     description:
@@ -533,6 +517,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  speech_to_text_windows:
+    dependency: transitive
+    description:
+      name: speech_to_text_windows
+      sha256: "2c9846d18253c7bbe059a276297ef9f27e8a2745dead32192525beb208195072"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0+beta.8"
   stack_trace:
     dependency: transitive
     description:

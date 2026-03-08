@@ -128,6 +128,12 @@ class VerdictScreen extends StatelessWidget {
               ],
             ),
             
+            const SizedBox(height: 24),
+
+            // Better Alternatives (Phase 4a: Swap Engine)
+            if (verdict.verdict != Verdict.good)
+              _BetterAlternativesSection(product: product),
+
             const SizedBox(height: 32),
             
             ElevatedButton(
@@ -142,7 +148,112 @@ class VerdictScreen extends StatelessWidget {
       ),
     );
   }
+}
 
+class _BetterAlternativesSection extends StatelessWidget {
+  final NutritionData product;
+
+  const _BetterAlternativesSection({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Better Alternatives",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "Based on your health profile, consider these instead:",
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<List<NutritionData>>(
+          future: NutritionService().fetchAlternatives(product),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text("No alternatives found for this category.");
+            }
+            return SizedBox(
+              height: 180,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final alt = snapshot.data![index];
+                  return Container(
+                    width: 140,
+                    margin: const EdgeInsets.only(right: 16),
+                    child: Card(
+                      child: Column(
+                        children: [
+                          if (alt.imageUrl != null)
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                child: Image.network(alt.imageUrl!, fit: BoxFit.cover, width: double.infinity),
+                              ),
+                            )
+                          else
+                            const Expanded(child: Icon(Icons.image_not_supported)),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              alt.productName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (alt.nutritionGrade != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    alt.nutritionGrade!.toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("Upvoted ${alt.productName}! Added to Safety Swaps.")),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// Ensure NutritionService is imported
+import '../services/nutrition_service.dart';
   Color _getVerdictColor() {
     switch (verdict.verdict) {
       case Verdict.good:

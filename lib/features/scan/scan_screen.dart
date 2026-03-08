@@ -93,6 +93,26 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
           ),
+
+          // AR Toggle (Moonshot Feature)
+          Positioned(
+            top: 50,
+            right: 20,
+            child: CircleAvatar(
+              backgroundColor: Colors.blue.withOpacity(0.8),
+              child: IconButton(
+                icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("AR Overlay Mode (Moonshot): Camera will soon show verdicts floating over labels!"),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
           
           if (!_isScanning)
             Positioned(

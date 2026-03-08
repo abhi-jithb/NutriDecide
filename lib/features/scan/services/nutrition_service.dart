@@ -22,6 +22,34 @@ class NutritionService {
     }
   }
 
+  Future<List<NutritionData>> fetchAlternatives(NutritionData product) async {
+    if (product.categories.isEmpty) return [];
+    
+    // Use the most specific category (usually the last one in tags)
+    final category = product.categories.last;
+    final url = 'https://world.openfoodfacts.org/cgi/search.pl?'
+        'action=process&'
+        'tagtype_0=categories&'
+        'tag_contains_0=contains&'
+        'tag_0=$category&'
+        'nutrition_grades=a,b&'
+        'sort_by=unique_scans_n&'
+        'page_size=5&'
+        'json=true';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List products = data['products'] ?? [];
+        return products.map((p) => NutritionData.fromJson({'product': p})).toList();
+      }
+    } catch (e) {
+      print('Error fetching alternatives: $e');
+    }
+    return [];
+  }
+
   ProductVerdict analyzeProduct(NutritionData product, UserProfile profile) {
     List<String> reasons = [];
     int cautionPoints = 0;

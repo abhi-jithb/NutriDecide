@@ -5,6 +5,10 @@ import '../scan/scan_screen.dart';
 import '../scan/models/scan_history_item.dart';
 import '../scan/data/scan_repository.dart';
 import 'services/meal_suggestion_service.dart';
+import 'services/pattern_coach_service.dart';
+import '../scan/services/risk_analysis_service.dart';
+import '../../core/theme/app_theme.dart';
+import 'voice_log_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +18,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final ScanRepository _scanRepo = ScanRepository();
+  final ProfileRepository _profileRepo = ProfileRepository();
+  final MealSuggestionService _mealService = MealSuggestionService();
+  final PatternCoachService _coachService = PatternCoachService();
+
   UserProfile? _profile;
   List<ScanHistoryItem> _history = [];
   List<MealSuggestion> _suggestions = [];
@@ -26,12 +35,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final profile = await ProfileRepository().getProfile();
-    final history = await ScanRepository().getHistory();
+    setState(() => _isLoading = true);
+    final profile = await _profileRepo.getProfile();
+    final history = await _scanRepo.getHistory();
     
     List<MealSuggestion> suggestions = [];
     if (profile != null) {
-      suggestions = MealSuggestionService().getSuggestions(profile, history);
+      suggestions = _mealService.getSuggestions(profile, history);
     }
     
     setState(() {
@@ -44,6 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final today = DateTime.now();
     final riskyToday = _history.where((s) => 
       s.timestamp.year == today.year && 
@@ -51,6 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
       s.timestamp.day == today.day &&
       (s.verdict.contains("AVOID") || s.verdict.contains("CAUTION"))
     ).length;
+
+    final coachInsight = _coachService.generateInsight(_history, _profile!);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -86,15 +102,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Innovation Pillars Actions
+                    _buildInnovationActions(context),
+                    const SizedBox(height: 24),
+
+                    // AI Pattern Coach Section (Phase 5)
+                    _buildPatternCoachSection(coachInsight),
+                    const SizedBox(height: 24),
+
                     if (riskyToday >= 2) _buildSmartAlert(riskyToday),
                     _buildScanCentral(),
                     const SizedBox(height: 32),
+                    
                     const Text(
                       "Daily Guidance",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     _buildSuggestionsList(),
+                    
                     const SizedBox(height: 32),
                     _buildRecentSection(),
                   ],
@@ -103,6 +129,143 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInnovationActions(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.mic_none, size: 18, color: Colors.blue),
+            label: const Text("Voice Regional AI"),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const VoiceLogScreen()),
+            ),
+            backgroundColor: Colors.blue.withOpacity(0.05),
+          ),
+          const SizedBox(width: 12),
+          ActionChip(
+            avatar: const Icon(Icons.family_restroom_rounded, size: 18, color: Colors.orange),
+            label: const Text("Family Mode"),
+            onPressed: () {
+               ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Family Mode: Linking profiles for Kerala homes soon!")),
+              );
+            },
+            backgroundColor: Colors.orange.withOpacity(0.05),
+          ),
+          const SizedBox(width: 12),
+          ActionChip(
+            avatar: const Icon(Icons.health_and_safety_rounded, size: 18, color: Colors.green),
+            label: const Text("Festival Mode"),
+            onPressed: () {
+               ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Festival Mode: Adjusting for Onam feast logic!")),
+              );
+            },
+            backgroundColor: Colors.green.withOpacity(0.05),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatternCoachSection(PatternCoachInsight insight) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Icon(Icons.psychology, size: 120, color: Colors.white.withOpacity(0.1)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.bolt, color: Colors.amber, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      "AI PATTERN COACH",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  insight.title,
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  insight.description,
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.tips_and_updates, color: Colors.amber, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          insight.suggestion,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (insight.healthierAlternatives.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: insight.healthierAlternatives.map((alt) => Chip(
+                      label: Text(alt, style: const TextStyle(fontSize: 10, color: Colors.white)),
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    )).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

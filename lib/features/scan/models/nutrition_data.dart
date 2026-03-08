@@ -5,6 +5,7 @@ class NutritionData {
   final List<String> ingredients;
   final Map<String, dynamic> nutrients;
   final String? nutritionGrade;
+  final List<String> categories;
 
   NutritionData({
     required this.productName,
@@ -13,6 +14,7 @@ class NutritionData {
     required this.ingredients,
     required this.nutrients,
     this.nutritionGrade,
+    this.categories = const [],
   });
 
   factory NutritionData.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,12 @@ class NutritionData {
           .toList();
     }
 
+    // Extract categories
+    List<String> categoriesList = [];
+    if (product['categories_tags'] != null) {
+      categoriesList = (product['categories_tags'] as List).cast<String>();
+    }
+
     return NutritionData(
       productName: product['product_name'] ?? 'Unknown Product',
       brand: product['brands'],
@@ -39,6 +47,7 @@ class NutritionData {
       ingredients: ingredientsList,
       nutrients: nutriments,
       nutritionGrade: product['nutrition_grades'],
+      categories: categoriesList,
     );
   }
 }

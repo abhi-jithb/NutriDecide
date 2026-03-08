@@ -10,7 +10,7 @@ void main() {
     await tester.pumpWidget(MyApp());
 
     // Verify app loads with login screen
-    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
 
   });
 }

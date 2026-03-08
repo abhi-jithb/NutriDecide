@@ -8,10 +8,35 @@ Welcome to the **NutriDecide** knowledge base. This document is a comprehensive 
 NutriDecide is built using a **Feature-First Clean Architecture**, now expanded with a robust **Node.js/Express** backend and MongoDB integration.
 
 ### **Core Layers**
-- **Presentation:** UI widgets and state management (StatefulWidgets). Focuses on high-fidelity user experience (Slivers, micro-animations, and custom graphics).
-- **Data (Repository):** Manages local persistence using `shared_preferences`. Abstracts data source complexity from the UI.
-- **Backend (API):** A flexible Node.js environment to handle regional food data that is not available in global databases like Open Food Facts.
-- **Inference Engine:** Located in the Domain/Services layer, it cross-references scanned/logged food data with the user's **Health DNA** profile.
+- **Inference Engine:** Located in the Domain/Services layer (`nutrition_service.dart`), it cross-references scanned/logged food data with the user's **Health DNA** profile.
+- **Regional AI Service:** The `RegionalFoodService` handles communication with the Node.js backend, providing fuzzy search and combination detection for Kerala dishes.
+
+---
+
+## 🔍 Deep Dive: File & Module Architecture
+
+### **1. Frontend (Flutter / Dart)**
+Located in the `lib/` directory, organized by features:
+- **`lib/features/scan/`**:
+    - `scan_screen.dart`: Uses `mobile_scanner` with a manual `MobileScannerController` to fix memory/buffer issues.
+    - `services/nutrition_service.dart`: The core logic that calculates verdicts based on health conditions (Diabetes, PCOS, Hypertension).
+- **`lib/features/regional/`**:
+    - `regional_food_service.dart`: The voice search brain. It handles spelling variants (e.g., "wada" -> "vada") and splits combined queries like "Appam and Chicken Curry".
+- **`lib/features/home/`**:
+    - `voice_log_screen.dart`: The UI for natural language input, featuring Lottie animations for a premium feel.
+    - `home_screen.dart`: Dashboard with `fl_chart` for calorie/risk trends.
+
+### **2. Backend (Node.js / Express)**
+Located in the `backend/` directory:
+- **`server.js`**: The entry point.
+    - **Seeding Logic**: Automatically populates the database with traditional Kerala foods (Puttu, Fish Curry, Upma, etc.) on the first run.
+    - **Search API**: Uses flexible regex searches to find foods by name, even if the user speaks partial words.
+- **`.env`**: Stores the `PORT` and `MONGODB_URI`. Note: Use your local IP (e.g., `192.168.29.159`) for cross-device connectivity.
+
+### **3. Database (MongoDB)**
+- **Collection: `regionalfoods`**:
+    - Stores structured nutrient data (`sugars_100g`, etc.), ingredients, and categories.
+    - Enables the app to "know" about foods that aren't in the global **OpenFoodFacts** database.
 
 ---
 

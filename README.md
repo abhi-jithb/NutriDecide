@@ -53,13 +53,33 @@ flutter pub get
 cd backend && npm install
 ```
 
-### 3️⃣ Run the App
+### 3️⃣ Run the App (Fedora Instructions)
 
+#### **Step A: Start MongoDB**
+Fedora uses `systemctl`. Ensure the service is running:
 ```bash
-# Start backend
-cd backend && npm run dev
+sudo systemctl start mongod
+sudo systemctl enable mongod
+# Check status: sudo systemctl status mongod
+```
 
-# Run Flutter app
+#### **Step B: Start Backend**
+```bash
+cd backend
+npm run dev
+# Confirm "✅ Connected to MongoDB" appears
+```
+
+#### **Step C: Configure Firewall (Optional)**
+If your phone cannot connect to the backend, Fedora's firewall might be blocking port 5000:
+```bash
+sudo firewall-cmd --permanent --add-port=5000/tcp
+sudo firewall-cmd --reload
+```
+
+#### **Step D: Launch Flutter**
+Ensure your device/emulator is connected:
+```bash
 flutter run
 ```
 

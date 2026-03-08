@@ -4,6 +4,7 @@ import 'data/profile_repository.dart';
 import '../scan/data/scan_repository.dart';
 import '../scan/services/risk_analysis_service.dart';
 import '../home/widgets/health_trend_chart.dart';
+import '../auth/presentation/profile_setup_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -157,7 +158,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 40),
                   
                   ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () async {
+                      if (_profile != null) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileSetupScreen(existingProfile: _profile),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadAllData();
+                        }
+                      }
+                    },
                     icon: const Icon(Icons.edit_note),
                     label: const Text("MODIFY HEALTH PROFILE"),
                   ),

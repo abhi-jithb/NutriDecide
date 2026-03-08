@@ -19,6 +19,7 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _hasPermission = false;
   bool _isScanning = true;
   String? _scannedCode;
+  final MobileScannerController _controller = MobileScannerController();
   final NutritionService _nutritionService = NutritionService();
   final ProfileRepository _profileRepository = ProfileRepository();
 
@@ -26,6 +27,12 @@ class _ScanScreenState extends State<ScanScreen> {
   void initState() {
     super.initState();
     _checkPermission();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _checkPermission() async {
@@ -63,12 +70,14 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Stack(
         children: [
           MobileScanner(
+            controller: _controller,
             onDetect: (capture) {
               if (!_isScanning) return;
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
                 final code = barcodes.first.rawValue;
                 if (code != null) {
+                  _controller.stop(); // Stop camera surface to save resources
                   setState(() {
                     _scannedCode = code;
                     _isScanning = false;
@@ -121,6 +130,7 @@ class _ScanScreenState extends State<ScanScreen> {
               right: 40,
               child: ElevatedButton(
                 onPressed: () {
+                  _controller.start(); // Resume camera
                   setState(() {
                     _isScanning = true;
                     _scannedCode = null;
@@ -196,8 +206,8 @@ class _ScanScreenState extends State<ScanScreen> {
   void _showSuccessSheet(String code) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
       ),
       builder: (context) {
         return Container(
@@ -231,6 +241,7 @@ class _ScanScreenState extends State<ScanScreen> {
       },
     ).then((_) {
       if (mounted && _isScanning == false && _scannedCode != null) {
+        _controller.start(); // Resume if back from sheet without analysis
         setState(() {
           _isScanning = true;
           _scannedCode = null;
@@ -257,6 +268,7 @@ class _ScanScreenState extends State<ScanScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to fetch product data or profile.")),
         );
+        _controller.start(); // Resume camera on error
         setState(() {
           _isScanning = true;
           _scannedCode = null;
@@ -283,6 +295,7 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       ).then((_) {
          if (mounted) {
+          _controller.start(); // Resume camera when back from verdict
           setState(() {
             _isScanning = true;
             _scannedCode = null;

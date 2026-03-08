@@ -90,70 +90,117 @@ class _VoiceLogScreenState extends State<VoiceLogScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Voice Nutrition AI")),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Identify Street food with voice",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
+      body: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height - AppBar().preferredSize.height - MediaQuery.of(context).padding.top),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 48),
+              const Text(
+                "Identify Street food with voice",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Text(
-                _text,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-              ),
-            ),
-            const SizedBox(height: 40),
-            GestureDetector(
-              onTap: _listen,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: _isListening ? 120 : 100,
-                height: _isListening ? 120 : 100,
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+                margin: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: _isListening ? Colors.red : Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_isListening ? Colors.red : Theme.of(context).colorScheme.primary).withOpacity(0.4),
-                      blurRadius: 20,
-                      spreadRadius: _isListening ? 10 : 5,
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(height: 40),
+              GestureDetector(
+                onTap: _listen,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: _isListening ? 120 : 100,
+                  height: _isListening ? 120 : 100,
+                  decoration: BoxDecoration(
+                    color: _isListening ? Colors.red : Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_isListening ? Colors.red : Theme.of(context).colorScheme.primary).withOpacity(0.4),
+                        blurRadius: 20,
+                        spreadRadius: _isListening ? 10 : 5,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.stop : Icons.mic,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+              ),
+              if (_isListening)
+                const Padding(
+                  padding: EdgeInsets.only(top: 24.0),
+                  child: Text("Listening for Kerala foods...", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
+              const SizedBox(height: 32),
+              Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                     const Text(
+                      "Currently identifying:",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                     ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _buildFoodChip("Puttu"),
+                      _buildFoodChip("Appam"),
+                      _buildFoodChip("Parotta"),
+                      _buildFoodChip("Idli"),
+                      _buildFoodChip("Vada"),
+                      _buildFoodChip("Sambar"),
+                      _buildFoodChip("Fish Curry"),
+                      _buildFoodChip("Beef Fry"),
+                    ],
+                  ),
                   ],
                 ),
-                child: Icon(
-                  _isListening ? Icons.stop : Icons.mic,
-                  color: Colors.white,
-                  size: 48,
+              ),
+              const SizedBox(height: 32),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 48.0),
+                child: Text(
+                  "Tip: Specify portions like 'Two parotta' or 'Half appam'",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
               ),
-            ),
-            if (_isListening)
-              const Padding(
-                padding: EdgeInsets.only(top: 24.0),
-                child: Text("Listening for Kerala foods...", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-              ),
-            const SizedBox(height: 48),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 48.0),
-              child: Text(
-                "Tip: You can specify portions. Try 'Two parotta and fish curry'",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ],
+              const SizedBox(height: 48),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFoodChip(String label) {
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 10)),
+      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+      padding: EdgeInsets.zero,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

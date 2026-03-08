@@ -38,6 +38,17 @@ class VerdictScreen extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey.withOpacity(0.1),
+                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => 
+                            const Icon(Icons.broken_image_outlined, size: 80, color: Colors.grey),
                         ),
                       )
                     else
@@ -219,7 +230,17 @@ class _BetterAlternativesSection extends StatelessWidget {
                             Expanded(
                               child: ClipRRect(
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                                child: Image.network(alt.imageUrl!, fit: BoxFit.cover, width: double.infinity),
+                                child: Image.network(
+                                  alt.imageUrl!, 
+                                  fit: BoxFit.cover, 
+                                  width: double.infinity,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return const Center(child: CircularProgressIndicator(strokeWidth: 1));
+                                  },
+                                  errorBuilder: (context, error, stackTrace) => 
+                                    const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                ),
                               ),
                             )
                           else
@@ -234,31 +255,39 @@ class _BetterAlternativesSection extends StatelessWidget {
                               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (alt.nutritionGrade != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(4),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (alt.nutritionGrade != null)
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        alt.nutritionGrade!.toUpperCase(),
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    alt.nutritionGrade!.toUpperCase(),
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                  ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Upvoted ${alt.productName}! Added to Safety Swaps.")),
+                                    );
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("Upvoted ${alt.productName}! Added to Safety Swaps.")),
-                                  );
-                                },
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 4),
                         ],

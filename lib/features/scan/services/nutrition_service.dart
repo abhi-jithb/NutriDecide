@@ -66,51 +66,71 @@ class NutritionService {
     // 2. Check Diabetes (High Sugar)
     if (profile.hasDiabetes) {
       final sugar = product.nutrients['sugars_100g'] ?? 0;
-      if (sugar > 10) {
-        reasons.add("High sugar content ($sugar g/100g) - Risky for diabetes");
-        avoidPoints += 5;
-      } else if (sugar > 5) {
-        reasons.add("Moderate sugar content ($sugar g/100g)");
-        cautionPoints += 2;
+      if (sugar > 8) {
+        reasons.add("High sugar detected ($sugar g). Stricter limit applied for your Diabetes profile.");
+        avoidPoints += 7;
+      } else if (sugar > 3) {
+        reasons.add("Contains moderate sugar ($sugar g). Monitor your glucose levels.");
+        cautionPoints += 3;
       }
     }
 
     // 3. Check Hypertension (High Sodium)
     if (profile.hasHypertension) {
       final sodium = product.nutrients['sodium_100g'] ?? 0;
-      if (sodium > 0.6) {
-        reasons.add("High sodium ($sodium g/100g) - Risky for hypertension");
-        avoidPoints += 5;
-      } else if (sodium > 0.3) {
-        reasons.add("Moderate sodium ($sodium g/100g)");
-        cautionPoints += 2;
+      final salt = product.nutrients['salt_100g'] ?? (sodium * 2.5);
+      if (salt > 1.2) {
+        reasons.add("High salt content (${salt.toStringAsFixed(1)}g). Dangerous for hypertension.");
+        avoidPoints += 7;
+      } else if (salt > 0.5) {
+        reasons.add("Moderate salt detected. Use with caution.");
+        cautionPoints += 3;
       }
     }
 
-    // 4. Check Diet Types (e.g., Vegan)
+    // 4. Check PCOS (Glycemic Load & Inflammation)
+    if (profile.hasPcos) {
+      final sugar = product.nutrients['sugars_100g'] ?? 0;
+      final highGiIngredients = ['maida', 'refined flour', 'maltodextrin', 'dextrose', 'corn syrup', 'tapioca starch'];
+      final inflammatoryOils = ['palm oil', 'vegetable oil', 'sunflower oil', 'soybean oil'];
+      
+      bool hasHighGi = product.ingredients.any((ing) => highGiIngredients.any((gi) => ing.toLowerCase().contains(gi)));
+      bool hasInflammatoryOil = product.ingredients.any((ing) => inflammatoryOils.any((oil) => ing.toLowerCase().contains(oil)));
+
+      if (sugar > 10 || (hasHighGi && sugar > 5)) {
+        reasons.add("High Glycemic Load: High sugar/refined carbs can trigger insulin resistance in PCOS.");
+        avoidPoints += 5;
+      } else if (hasHighGi || hasInflammatoryOil) {
+        reasons.add("Contains refined carbs or inflammatory oils: May aggravate PCOS symptoms.");
+        cautionPoints += 4;
+      }
+    }
+
+    // 5. Check Diet Types (e.g., Vegan)
     if (profile.dietType == "Vegan") {
-      final animalProducts = ['milk', 'egg', 'honey', 'meat', 'beef', 'pork', 'gelatin'];
+      final animalProducts = ['milk', 'egg', 'honey', 'meat', 'beef', 'pork', 'gelatin', 'curd', 'ghee', 'fish'];
       for (var nonVegan in animalProducts) {
         if (product.ingredients.any((ing) => ing.contains(nonVegan))) {
-          reasons.add("Contains animal-derived ingredient: $nonVegan");
+          reasons.add("Non-Vegan: Contains $nonVegan");
           avoidPoints += 10;
         }
       }
     }
 
-    // 5. Ultra-Processed Additives
+    // 6. Ultra-Processed Additives & Fillers
     final harmfulAdditives = {
-      'high fructose corn syrup': 'Highly processed sweetener linked to obesity',
-      'palm oil': 'High in saturated fats and environmental impact',
-      'artificial color': 'May have behavioral effects in children',
-      'monosodium glutamate': 'Additive that may cause sensitivity',
-      'aspartame': 'Artificial sweetener linked to gut issues',
+      'high fructose corn syrup': 'Highly processed sweetener',
+      'palm oil': 'High in saturated fats',
+      'artificial color': 'Synthetic additive',
+      'msg': 'Flavor enhancer',
+      'aspartame': 'Artificial sweetener',
+      'preservative': 'Chemical stabilizer',
     };
 
     for (var entry in harmfulAdditives.entries) {
-      if (product.ingredients.any((ing) => ing.contains(entry.key))) {
-        reasons.add("Contains ${entry.key}: ${entry.value}");
-        cautionPoints += 1;
+      if (product.ingredients.any((ing) => ing.toLowerCase().contains(entry.key))) {
+        reasons.add("Refined Additive: ${entry.key}");
+        cautionPoints += 2;
       }
     }
     if (avoidPoints > 0) {

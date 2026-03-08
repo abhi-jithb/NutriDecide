@@ -9,6 +9,7 @@ import 'services/pattern_coach_service.dart';
 import '../scan/services/risk_analysis_service.dart';
 import '../../core/theme/app_theme.dart';
 import 'voice_log_screen.dart';
+import '../scan/presentation/history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -74,55 +75,66 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 120,
+              expandedHeight: 80,
               floating: false,
               pinned: true,
               flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  _profile != null ? "Hello, ${_profile?.gender == 'Male' ? 'Sir' : '👋'}" : "Welcome",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                title: const Text(
+                  "NutriDecide Intelligence",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 background: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.secondary,
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                   ),
                 ),
+                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Innovation Pillars Actions
-                    _buildInnovationActions(context),
+                    // Daily Guidance - Compact
+                    const Text(
+                      "Daily Guidance",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildProminentGuidance(),
+                    
                     const SizedBox(height: 24),
+
+                    // Scan Your Food - Important
+                    if (riskyToday >= 2) _buildSmartAlert(riskyToday),
+                    _buildScanCentral(),
+
+                    const SizedBox(height: 32),
+
+                    // Health Ecosystem
+                    const Text(
+                      "Health Ecosystem",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInnovationActions(context),
+                    const SizedBox(height: 32),
 
                     // AI Pattern Coach Section (Phase 5)
                     _buildPatternCoachSection(coachInsight),
                     const SizedBox(height: 24),
-
-                    if (riskyToday >= 2) _buildSmartAlert(riskyToday),
-                    _buildScanCentral(),
-                    const SizedBox(height: 32),
                     
-                    const Text(
-                      "Daily Guidance",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSuggestionsList(),
-                    
-                    const SizedBox(height: 32),
                     _buildRecentSection(),
+                    const SizedBox(height: 100), // Extra space for bottom nav
                   ],
                 ),
               ),
@@ -179,91 +191,91 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
+          colors: [Colors.indigo.shade900, Colors.indigo.shade700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.indigo.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -20,
-            top: -20,
-            child: Icon(Icons.psychology, size: 120, color: Colors.white.withOpacity(0.1)),
+            right: -10,
+            top: -10,
+            child: Icon(Icons.psychology, size: 80, color: Colors.white.withOpacity(0.05)),
           ),
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.bolt, color: Colors.amber, size: 20),
+                    const Icon(Icons.bolt, color: Colors.amber, size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      "AI PATTERN COACH",
+                      "COACH INSIGHT",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  insight.title,
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                ),
                 const SizedBox(height: 8),
                 Text(
-                  insight.description,
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, height: 1.4),
+                  insight.title,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.tips_and_updates, color: Colors.amber, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          insight.suggestion,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 4),
+                Text(
+                  insight.suggestion,
+                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12, fontWeight: FontWeight.w500),
                 ),
-                if (insight.healthierAlternatives.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: insight.healthierAlternatives.map((alt) => Chip(
-                      label: Text(alt, style: const TextStyle(fontSize: 10, color: Colors.white)),
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      padding: EdgeInsets.zero,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    )).toList(),
-                  ),
-                ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProminentGuidance() {
+    if (_suggestions.isEmpty) return const SizedBox.shrink();
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(_getIconData(_suggestions.first.icon), size: 14, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _suggestions.first.title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _suggestions.first.description,
+            style: const TextStyle(fontSize: 11, color: Colors.black87, height: 1.2),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -428,7 +440,13 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             if (_history.isNotEmpty)
-              TextButton(onPressed: () {}, child: const Text("View All")),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ScanHistoryScreen()),
+                ).then((_) => _loadData()), // Reload if history was cleared or updated
+                child: const Text("View All"),
+              ),
           ],
         ),
         const SizedBox(height: 12),

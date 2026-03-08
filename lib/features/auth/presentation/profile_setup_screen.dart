@@ -4,6 +4,9 @@ import '../../profile/models/user_profile.dart';
 import '../../profile/data/profile_repository.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
+  final UserProfile? existingProfile;
+  const ProfileSetupScreen({super.key, this.existingProfile});
+
   @override
   _ProfileSetupScreenState createState() => _ProfileSetupScreenState();
 }
@@ -25,6 +28,24 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   final List<String> allergies = [];
   final List<String> intolerances = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingProfile != null) {
+      final p = widget.existingProfile!;
+      heightController.text = p.height.toString();
+      weightController.text = p.weight.toString();
+      targetWeightController.text = p.targetWeight.toString();
+      selectedGender = p.gender;
+      selectedGoal = p.goal;
+      selectedActivity = p.activityLevel;
+      selectedDiet = p.dietType;
+      diabetes = p.hasDiabetes;
+      hypertension = p.hasHypertension;
+      pcos = p.hasPcos;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +77,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                value: selectedGender,
                 decoration: const InputDecoration(labelText: "Gender"),
                 items: ["Male", "Female", "Prefer not to say"]
                     .map((g) => DropdownMenuItem(value: g, child: Text(g)))
@@ -70,6 +92,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                value: selectedGoal,
                 decoration: const InputDecoration(labelText: "Goal"),
                 items: ["Weight Loss", "Maintain", "Weight Gain"]
                     .map((g) => DropdownMenuItem(value: g, child: Text(g)))
@@ -87,6 +110,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                value: selectedActivity,
                 decoration: const InputDecoration(labelText: "Activity Level"),
                 items: [
                   "Sedentary",
@@ -102,6 +126,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                value: selectedDiet,
                 decoration: const InputDecoration(labelText: "Diet Type"),
                 items: [
                   "No Restriction",
@@ -154,21 +179,33 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     hasDiabetes: diabetes,
                     hasHypertension: hypertension,
                     hasPcos: pcos,
-                    allergies: [], // TODO: Add allergy selection UI
+                    allergies: widget.existingProfile?.allergies ?? [], 
                   );
 
                   await ProfileRepository().saveProfile(profile);
 
                   if (mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BottomNavScreen(),
-                      ),
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Health Profile Updated Successfully!")),
                     );
+                    if (widget.existingProfile != null) {
+                      Navigator.pop(context, true);
+                    } else {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BottomNavScreen(),
+                        ),
+                      );
+                    }
                   }
                 },
-                child: const Text("Finish Setup"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 56),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(widget.existingProfile != null ? "SAVE CHANGES" : "FINISH SETUP"),
               ),
             ],
           ),

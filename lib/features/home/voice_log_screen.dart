@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:lottie/lottie.dart';
-import '../../regional/services/regional_food_service.dart';
-import '../../scan/services/nutrition_service.dart';
-import '../../profile/data/profile_repository.dart';
-import '../../scan/presentation/verdict_screen.dart';
+import '../regional/services/regional_food_service.dart';
+import '../scan/services/nutrition_service.dart';
+import '../profile/data/profile_repository.dart';
+import '../scan/presentation/verdict_screen.dart';
 
 class VoiceLogScreen extends StatefulWidget {
   const VoiceLogScreen({super.key});
@@ -54,9 +54,19 @@ class _VoiceLogScreenState extends State<VoiceLogScreen> {
   }
 
   void _processVoiceInput(String text) async {
-    final food = _regionalService.searchFood(text);
-    if (food != null) {
-      final profile = await _profileRepo.getProfile();
+    // Show Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final food = await _regionalService.searchFood(text);
+    final profile = await _profileRepo.getProfile();
+
+    if (mounted) Navigator.pop(context); // Hide loading
+    
+    if (food != null && profile != null) {
       final verdict = _nutritionService.analyzeProduct(food, profile);
       
       if (!mounted) return;
@@ -68,9 +78,11 @@ class _VoiceLogScreenState extends State<VoiceLogScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't identify that food. Try 'Puttu' or 'Appam'")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't identify that food or fetch profile. Try 'Puttu' or 'Appam'")),
+        );
+      }
     }
   }
 

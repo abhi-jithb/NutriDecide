@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../profile/models/user_profile.dart';
 import '../models/nutrition_data.dart';
+import '../services/nutrition_service.dart';
 
 class VerdictScreen extends StatelessWidget {
   final NutritionData product;
@@ -148,6 +149,28 @@ class VerdictScreen extends StatelessWidget {
       ),
     );
   }
+
+  Color _getVerdictColor() {
+    switch (verdict.verdict) {
+      case Verdict.good:
+        return Colors.green;
+      case Verdict.caution:
+        return Colors.orange;
+      case Verdict.avoid:
+        return Colors.red;
+    }
+  }
+
+  IconData _getVerdictIcon() {
+    switch (verdict.verdict) {
+      case Verdict.good:
+        return Icons.check_circle;
+      case Verdict.caution:
+        return Icons.warning_amber_rounded;
+      case Verdict.avoid:
+        return Icons.dangerous;
+    }
+  }
 }
 
 class _BetterAlternativesSection extends StatelessWidget {
@@ -249,30 +272,5 @@ class _BetterAlternativesSection extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-// Ensure NutritionService is imported
-import '../services/nutrition_service.dart';
-  Color _getVerdictColor() {
-    switch (verdict.verdict) {
-      case Verdict.good:
-        return Colors.green;
-      case Verdict.caution:
-        return Colors.orange;
-      case Verdict.avoid:
-        return Colors.red;
-    }
-  }
-
-  IconData _getVerdictIcon() {
-    switch (verdict.verdict) {
-      case Verdict.good:
-        return Icons.check_circle;
-      case Verdict.caution:
-        return Icons.warning_amber_rounded;
-      case Verdict.avoid:
-        return Icons.dangerous;
-    }
   }
 }

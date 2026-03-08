@@ -26,7 +26,7 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
-        side: BorderSide(color: Colors.emerald.withOpacity(0.05)),
+        side: BorderSide(color: primaryEmerald.withOpacity(0.05)),
       ),
       color: Colors.white,
     ),
@@ -51,7 +51,7 @@ class AppTheme {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: BorderSide(color: Colors.emerald.withOpacity(0.1)),
+        borderSide: BorderSide(color: primaryEmerald.withOpacity(0.1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),

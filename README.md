@@ -145,6 +145,12 @@ A detailed breakdown of the codebase and its responsibilities:
 
 ## 📜 Log of Changes
 
+### **📅 2026-03-10: Branding & Vision Refinement**
+*   **Dynamic Theme Logos:** Implemented theme-aware logo assets (`logo_black_bg.png`, `logo_white_bg.png`) that adapt to the user's system preferences.
+*   **Animated Splash Screen:** Engineered a premium entry experience with an `easeIn` fade transition and unified branding.
+*   **Moonshot AR Overlay:** Upgraded the Beta AR toggle to display real-time animated data nodes (Calorie Est, Allergy Warnings) layered over the live camera feed.
+*   **Voice AI Engine:** Refactored natural language processing to handle portion multipliers (e.g., "half"), complex combinations (e.g., "idli and fish curry"), and phonetic typos.
+
 ### **📅 2026-03-08: The Innovation Leap (Phase 4 & 5)**
 *   **Backend Integration:** Launched a Node.js/MongoDB backend to serve real-time regional food data.
 *   **Voice Regional AI:** Implemented voice logging for local dishes (e.g., Puttu, Appam) with automatic portion estimation.
@@ -152,7 +158,6 @@ A detailed breakdown of the codebase and its responsibilities:
 *   **Swap Engine:** Integrated a recommendation engine to suggest healthier alternatives for "Caution" or "Avoid" items.
 *   **Safety Swaps Network:** Added an "Upvote" system to simulate community-driven healthy food discovery.
 *   **Theme Refinement:** Migrated to a much more premium **Emerald and Amber** aesthetic with Google Fonts (Outfit).
-*   **Moonshot Feature:** Added an **AR Label Overlay** toggle in the scanner for projected feature visualization.
 
 ### **📅 2026-03-08: The Intelligence Upgrade**
 *   **Health Trends:** Integrated `fl_chart` to visualize a **7-Day Risk Pattern Graph**.

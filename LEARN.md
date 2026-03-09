@@ -83,6 +83,12 @@ The project's latest evolution focuses on **Regional AI**. Many foods in India (
 - **AI Coaching:** The `PatternCoachService` provides deep behavioral insights (e.g., "Sunday Sodium Spike").
 - **Swap Engine:** Proactive suggestions for "Better Alternatives" using category-based API searches.
 
+### **V1.4: Branding & Vision Refinement (March 10, 2026)**
+- **Dynamic Theming:** Deeply integrated true black/white adaptive brand assets (`logo_black_bg.png`, `logo_white_bg.png`).
+- **Premium Initialization:** Engineered a smooth, `easeIn` animated Splash Screen.
+- **Moonshot Upgrade:** Transformed the AR toggle into an animated, node-based overlay mimicking real-time OCR label processing.
+- **NLU Precision:** Elevated the NLP engine logic to interpret natural human portioning ("half") and multi-dish combinations cleanly.
+
 ---
 
 ## 🗺️ Information Mapping

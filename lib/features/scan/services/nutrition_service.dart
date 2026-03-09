@@ -52,94 +52,134 @@ class NutritionService {
 
   ProductVerdict analyzeProduct(NutritionData product, UserProfile profile) {
     List<String> reasons = [];
-    int cautionPoints = 0;
-    int avoidPoints = 0;
+    double riskScore = 0;
 
-    // 1. Check Allergies
+    double sugar100 = (product.nutrients['sugars_100g'] ?? 0).toDouble();
+    double sodiumMg = 0.0;
+    if (product.nutrients['sodium_100g'] != null) {
+      sodiumMg = (product.nutrients['sodium_100g'] as num).toDouble() * 1000.0;
+    } else if (product.nutrients['salt_100g'] != null) {
+      sodiumMg = (product.nutrients['salt_100g'] as num).toDouble() / 2.5 * 1000.0;
+    }
+    double satFat100 = (product.nutrients['saturated-fat_100g'] ?? product.nutrients['saturated_fat_100g'] ?? 0).toDouble();
+    double energyKcal100 = (product.nutrients['energy-kcal_100g'] ?? product.nutrients['energy_kcal_100g'] ?? 0).toDouble();
+    double fiber100 = (product.nutrients['fiber_100g'] ?? 0).toDouble();
+
+    // 1. Allergies
+    bool hasAllergy = false;
     for (var allergy in profile.allergies) {
-      if (product.ingredients.any((ing) => ing.contains(allergy.toLowerCase()))) {
-        reasons.add("Contains your allergen: $allergy");
-        avoidPoints += 10;
+      if (product.ingredients.any((ing) => ing.toLowerCase().contains(allergy.toLowerCase()))) {
+        reasons.add("Contains allergen: $allergy.");
+        hasAllergy = true;
       }
     }
 
-    // 2. Check Diabetes (High Sugar)
+    // Base risks
+    double sugarRisk = 0;
+    if (sugar100 > 20) sugarRisk = 40;
+    else if (sugar100 > 10) sugarRisk = 25;
+    else if (sugar100 > 5) sugarRisk = 10;
+
+    double sodiumRisk = 0;
+    if (sodiumMg > 800) sodiumRisk = 40;
+    else if (sodiumMg > 400) sodiumRisk = 25;
+    else if (sodiumMg > 120) sodiumRisk = 10;
+
+    double fatRisk = 0;
+    if (satFat100 > 10) fatRisk = 20;
+    else if (satFat100 > 5) fatRisk = 10;
+
+    double calorieRisk = 0;
+    if (energyKcal100 > 500) calorieRisk = 30; // High calorie density
+    else if (energyKcal100 > 300) calorieRisk = 15;
+
+    double additiveRisk = 0;
+    final refinedSugars = ['high fructose corn syrup', 'glucose syrup', 'corn syrup solids', 'maltose', 'added sugar'];
+    bool hasRefinedSugar = product.ingredients.any((ing) => refinedSugars.any((rs) => ing.toLowerCase().contains(rs)));
+    if (hasRefinedSugar) additiveRisk += 15;
+
+    final harmfulAdditives = ['artificial color', 'msg', 'aspartame', 'preservative', 'palm oil'];
+    int additiveCount = product.ingredients.where((ing) => harmfulAdditives.any((ha) => ing.toLowerCase().contains(ha))).length;
+    additiveRisk += additiveCount * 5.0;
+
+    double fiberBonus = 0;
+    if (fiber100 > 5) fiberBonus = 15;
+    else if (fiber100 > 3) fiberBonus = 5;
+
+    // Apply specific condition multipliers and reasons
     if (profile.hasDiabetes) {
-      final sugar = product.nutrients['sugars_100g'] ?? 0;
-      if (sugar > 8) {
-        reasons.add("High sugar detected ($sugar g). Stricter limit applied for your Diabetes profile.");
-        avoidPoints += 7;
-      } else if (sugar > 3) {
-        reasons.add("Contains moderate sugar ($sugar g). Monitor your glucose levels.");
-        cautionPoints += 3;
+      sugarRisk *= 1.5;
+      if (hasRefinedSugar) {
+        additiveRisk += 10;
+        reasons.add("Contains refined sugars, increasing blood glucose spike risk.");
       }
+      if (sugar100 > 10 || hasRefinedSugar) {
+         reasons.add("High sugar content may not align with diabetes management.");
+      }
+    } else if (sugar100 > 20) {
+      reasons.add("Very high sugar content (${sugar100.toStringAsFixed(1)}g/100g).");
     }
 
-    // 3. Check Hypertension (High Sodium)
     if (profile.hasHypertension) {
-      final sodium = product.nutrients['sodium_100g'] ?? 0;
-      final salt = product.nutrients['salt_100g'] ?? (sodium * 2.5);
-      if (salt > 1.2) {
-        reasons.add("High salt content (${salt.toStringAsFixed(1)}g). Dangerous for hypertension.");
-        avoidPoints += 7;
-      } else if (salt > 0.5) {
-        reasons.add("Moderate salt detected. Use with caution.");
-        cautionPoints += 3;
+      sodiumRisk *= 1.5;
+      if (sodiumMg > 400) {
+         reasons.add("High sodium levels may increase blood pressure risk.");
       }
+      if (sodiumMg > 800 && (fatRisk > 0 || additiveRisk > 0)) {
+         sodiumRisk += 15; // move toward AVOID when combined with fat/processed
+      }
+    } else if (sodiumMg > 800) {
+      reasons.add("Very high sodium content (${sodiumMg.toStringAsFixed(0)}mg/100g).");
     }
 
-    // 4. Check PCOS (Glycemic Load & Inflammation)
     if (profile.hasPcos) {
-      final sugar = product.nutrients['sugars_100g'] ?? 0;
-      final highGiIngredients = ['maida', 'refined flour', 'maltodextrin', 'dextrose', 'corn syrup', 'tapioca starch'];
-      final inflammatoryOils = ['palm oil', 'vegetable oil', 'sunflower oil', 'soybean oil'];
-      
-      bool hasHighGi = product.ingredients.any((ing) => highGiIngredients.any((gi) => ing.toLowerCase().contains(gi)));
-      bool hasInflammatoryOil = product.ingredients.any((ing) => inflammatoryOils.any((oil) => ing.toLowerCase().contains(oil)));
-
-      if (sugar > 10 || (hasHighGi && sugar > 5)) {
-        reasons.add("High Glycemic Load: High sugar/refined carbs can trigger insulin resistance in PCOS.");
-        avoidPoints += 5;
-      } else if (hasHighGi || hasInflammatoryOil) {
-        reasons.add("Contains refined carbs or inflammatory oils: May aggravate PCOS symptoms.");
-        cautionPoints += 4;
+      calorieRisk *= 1.5;
+      sugarRisk = profile.hasDiabetes ? sugarRisk : (sugarRisk * 1.3); // moderately penalize if not already penalized by diabetes
+      additiveRisk *= 1.5;
+      if (energyKcal100 > 500 || sugar100 > 10 || hasRefinedSugar) {
+         reasons.add("High calorie density and refined carbohydrates may worsen PCOS-related insulin resistance.");
       }
+    } else if (energyKcal100 > 500) {
+      reasons.add("High calorie density (${energyKcal100.toStringAsFixed(0)} kcal/100g).");
     }
 
-    // 5. Check Diet Types (e.g., Vegan)
+    if (fiber100 > 3) {
+      reasons.add("Fiber content (${fiber100.toStringAsFixed(1)}g) slows glucose absorption and improves digestion.");
+    }
+
+    // Diet types logic (e.g., Vegan)
     if (profile.dietType == "Vegan") {
       final animalProducts = ['milk', 'egg', 'honey', 'meat', 'beef', 'pork', 'gelatin', 'curd', 'ghee', 'fish'];
       for (var nonVegan in animalProducts) {
         if (product.ingredients.any((ing) => ing.contains(nonVegan))) {
-          reasons.add("Non-Vegan: Contains $nonVegan");
-          avoidPoints += 10;
+          reasons.add("Non-Vegan: Contains $nonVegan.");
+          hasAllergy = true; // Act as complete blocker
         }
       }
     }
 
-    // 6. Ultra-Processed Additives & Fillers
-    final harmfulAdditives = {
-      'high fructose corn syrup': 'Highly processed sweetener',
-      'palm oil': 'High in saturated fats',
-      'artificial color': 'Synthetic additive',
-      'msg': 'Flavor enhancer',
-      'aspartame': 'Artificial sweetener',
-      'preservative': 'Chemical stabilizer',
-    };
+    // Cumulative Risk Score
+    riskScore = sugarRisk + sodiumRisk + fatRisk + calorieRisk + additiveRisk - fiberBonus;
+    if (hasAllergy) riskScore += 100; // Immediate avoid
 
-    for (var entry in harmfulAdditives.entries) {
-      if (product.ingredients.any((ing) => ing.toLowerCase().contains(entry.key))) {
-        reasons.add("Refined Additive: ${entry.key}");
-        cautionPoints += 2;
+    riskScore = riskScore.clamp(0.0, 100.0);
+
+    // Final Verdict matching exact boundaries
+    Verdict finalVerdict;
+    if (riskScore <= 25) {
+      finalVerdict = Verdict.good;
+      if (reasons.isEmpty || reasons.length == 1 && reasons.first.contains("Fiber")) {
+        reasons.add("Generally suitable for your profile.");
       }
-    }
-    if (avoidPoints > 0) {
-      return ProductVerdict(verdict: Verdict.avoid, reasons: reasons);
-    } else if (cautionPoints > 0) {
-      return ProductVerdict(verdict: Verdict.caution, reasons: reasons);
+    } else if (riskScore <= 60) {
+      finalVerdict = Verdict.caution;
     } else {
-      reasons.add("Matches your health profile perfectly!");
-      return ProductVerdict(verdict: Verdict.good, reasons: reasons);
+      finalVerdict = Verdict.avoid;
     }
+
+    // Required disclaimer
+    reasons.add("Guidance only. Not medical advice.");
+
+    return ProductVerdict(verdict: finalVerdict, reasons: reasons.toSet().toList());
   }
 }

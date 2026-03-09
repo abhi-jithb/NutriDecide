@@ -40,41 +40,115 @@ class RegionalFoodService {
       'fish curry': 'fish curry',
       'beef curry': 'beef fry',
       'beef fry': 'beef fry',
+      'delhi': 'idli',
+      'ideli': 'idli',
     };
 
-    // Clean query (Preserve 'and' for splitting)
+    // Clean query (Convert 'with', '+', 'plus' into 'and')
     String cleaned = query.toLowerCase()
-        .replaceAll(RegExp(r'\d+'), '')
-        .replaceAll('one', '')
-        .replaceAll('two', '')
-        .replaceAll('three', '')
-        .replaceAll('four', '')
-        .replaceAll('five', '')
-        .replaceAll('ten', '')
-        .replaceAll('half', '')
-        // .replaceAll('and', '') // REMOVED: Need this for splitting below
-        .replaceAll('with', '')
+        .replaceAll(' with ', ' and ')
+        .replaceAll(' + ', ' and ')
+        .replaceAll(' plus ', ' and ')
         .trim();
     
-    // 1. Try splitting by 'and' to handle combinations
-    if (cleaned.contains(' and ')) {
-      final parts = cleaned.split(' and ').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-      print('Detected combination items: $parts');
-      for (var part in parts) {
-         NutritionData? partResult = await _searchSingleFood(part, synonyms);
-         if (partResult != null) return partResult; 
-      }
+    // Split by 'and' to handle combinations
+    final parts = cleaned.split(RegExp(r'\s+and\s+')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) {
+        parts.add(cleaned); // Fallback to entire query if split resulted in empty
     }
-    // Also try splitting by direct 'and' if spaces are missing or captured weirdly
-    else if (cleaned.contains('and')) {
-       final parts = cleaned.split('and').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-       for (var part in parts) {
-         NutritionData? partResult = await _searchSingleFood(part, synonyms);
-         if (partResult != null) return partResult; 
+
+    print('Detected combination parts: $parts');
+    
+    List<NutritionData> combinedItems = [];
+    List<double> portions = [];
+
+    for (var part in parts) {
+      double portion = estimatePortion(part);
+      // Remove portion words from the string so the search engine only gets the food name
+      String searchPart = part.replaceAll(RegExp(r'\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|half|of)\b', caseSensitive: false), '').trim();
+      
+      // If stripping left us with nothing, just use the original part
+      if (searchPart.isEmpty) searchPart = part;
+
+      NutritionData? partResult = await _searchSingleFood(searchPart, synonyms);
+      if (partResult != null) {
+        combinedItems.add(partResult);
+        portions.add(portion);
       }
     }
 
-    return await _searchSingleFood(cleaned, synonyms);
+    if (combinedItems.isEmpty) return null;
+
+    if (combinedItems.length == 1) {
+      return scaleFood(combinedItems.first, portions.first);
+    } else {
+      return combineFoods(combinedItems, portions);
+    }
+  }
+
+  NutritionData scaleFood(NutritionData food, double portion) {
+    if (portion == 1.0) return food;
+    
+    Map<String, dynamic> scaledNutrients = {};
+    food.nutrients.forEach((key, value) {
+      if (value is num) {
+        scaledNutrients[key] = double.parse((value * portion).toStringAsFixed(2));
+      } else {
+        scaledNutrients[key] = value;
+      }
+    });
+
+    String prefix = portion == portion.toInt() ? portion.toInt().toString() : portion.toStringAsFixed(1);
+    
+    return NutritionData(
+      productName: '${prefix}x ${food.productName}',
+      ingredients: food.ingredients,
+      nutrients: scaledNutrients,
+      categories: food.categories,
+      imageUrl: food.imageUrl,
+    );
+  }
+
+  NutritionData combineFoods(List<NutritionData> foods, List<double> portions) {
+    String combinedName = '';
+    List<String> combinedIngredients = [];
+    Map<String, dynamic> combinedNutrients = {};
+    List<String> combinedCategories = [];
+
+    for (int i = 0; i < foods.length; i++) {
+      final food = foods[i];
+      final portion = portions[i];
+      
+      String prefix = portion == 1.0 ? "" : "${portion == portion.toInt() ? portion.toInt() : portion.toStringAsFixed(1)}x ";
+      combinedName += '$prefix${food.productName}';
+      if (i < foods.length - 1) combinedName += " + ";
+
+      combinedIngredients.addAll(food.ingredients);
+      combinedCategories.addAll(food.categories);
+
+      food.nutrients.forEach((key, value) {
+        if (value is num) {
+          combinedNutrients[key] = (combinedNutrients[key] ?? 0.0) + (value * portion);
+        } else if (!combinedNutrients.containsKey(key)) {
+           combinedNutrients[key] = value;
+        }
+      });
+    }
+
+    // Format all aggregated values to 2 decimal places
+    combinedNutrients.forEach((key, value) {
+       if (value is num) {
+         combinedNutrients[key] = double.parse(value.toStringAsFixed(2));
+       }
+    });
+
+    return NutritionData(
+      productName: combinedName,
+      ingredients: combinedIngredients.toSet().toList(),
+      nutrients: combinedNutrients,
+      categories: combinedCategories.toSet().toList(),
+      imageUrl: foods.first.imageUrl, // Inherit image from main component
+    );
   }
 
   Future<NutritionData?> _searchSingleFood(String query, Map<String, String> synonyms) async {
@@ -216,9 +290,28 @@ class RegionalFoodService {
 
   // Voice estimation logic for portions
   double estimatePortion(String voiceText) {
-    if (voiceText.contains('2') || voiceText.contains('two')) return 2.0;
-    if (voiceText.contains('3') || voiceText.contains('three')) return 3.0;
-    if (voiceText.contains('half') || voiceText.contains('1/2')) return 0.5;
+    final regex = RegExp(r'\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|half|quarter)\b', caseSensitive: false);
+    final match = regex.firstMatch(voiceText.toLowerCase());
+    
+    if (match != null) {
+      final val = match.group(0);
+      switch (val) {
+        case 'half': return 0.5;
+        case 'quarter': return 0.25;
+        case 'one': return 1.0;
+        case 'two': return 2.0;
+        case 'three': return 3.0;
+        case 'four': return 4.0;
+        case 'five': return 5.0;
+        case 'six': return 6.0;
+        case 'seven': return 7.0;
+        case 'eight': return 8.0;
+        case 'nine': return 9.0;
+        case 'ten': return 10.0;
+        default:
+          return double.tryParse(val!) ?? 1.0;
+      }
+    }
     return 1.0; // Default portion
   }
 }

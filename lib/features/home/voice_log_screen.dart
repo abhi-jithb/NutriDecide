@@ -79,8 +79,18 @@ class _VoiceLogScreenState extends State<VoiceLogScreen> {
       );
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't identify that food or fetch profile. Try 'Puttu' or 'Appam'")),
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Product Not Available"),
+            content: Text("We couldn't identify '$text' in our database.\n\nPlease select/say something from the currently identified list below."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
         );
       }
     }

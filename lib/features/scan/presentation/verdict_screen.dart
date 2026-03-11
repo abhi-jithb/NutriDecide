@@ -30,7 +30,7 @@ class VerdictScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    if (product.imageUrl != null)
+                    if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
@@ -226,7 +226,7 @@ class _BetterAlternativesSection extends StatelessWidget {
                     child: Card(
                       child: Column(
                         children: [
-                          if (alt.imageUrl != null)
+                          if (alt.imageUrl != null && alt.imageUrl!.isNotEmpty)
                             Expanded(
                               child: ClipRRect(
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),

@@ -156,42 +156,93 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildArIndicators() {
+    return const _ArSimulatedOverlay();
+  }
+}
+
+class _ArSimulatedOverlay extends StatefulWidget {
+  const _ArSimulatedOverlay();
+
+  @override
+  State<_ArSimulatedOverlay> createState() => _ArSimulatedOverlayState();
+}
+
+class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return IgnorePointer(
       child: Center(
         child: Container(
           width: 300,
           height: 300,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            border: Border.all(color: Colors.greenAccent.withOpacity(0.3), width: 2),
             borderRadius: BorderRadius.circular(30),
           ),
           child: Stack(
             children: [
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Positioned(
+                    top: _controller.value * 280, // Sweeping line
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent,
+                        boxShadow: [
+                          BoxShadow(color: Colors.greenAccent.withOpacity(0.8), blurRadius: 10, spreadRadius: 3)
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
               Positioned(
                 top: 20,
                 left: 20,
                 child: _buildArNode("Scrutinizing Ingredients...", Colors.green),
               ),
               Positioned(
-                top: 60,
-                right: 10,
+                top: 80,
+                right: 5,
                 child: _buildArNode("Est: 250 kcal", Colors.blueAccent),
               ),
-              Positioned(
-                bottom: 80,
-                left: 10,
-                child: _buildArNode("⚠️ Allergy Redline Detected", Colors.redAccent),
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Positioned(
+                    bottom: 60,
+                    left: 10,
+                    child: Opacity(
+                      opacity: 0.5 + (_controller.value * 0.5),
+                      child: _buildArNode("⚠️ Allergy Redline Detected", Colors.redAccent),
+                    ),
+                  );
+                },
               ),
               Positioned(
-                bottom: 40,
+                bottom: 20,
                 right: 20,
                 child: _buildArNode("Detecting Saturated Fats", Colors.amber),
-              ),
-              Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green.withOpacity(0.5)),
-                ),
               ),
             ],
           ),
@@ -204,9 +255,9 @@ class _ScanScreenState extends State<ScanScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withOpacity(0.7),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withOpacity(0.8)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

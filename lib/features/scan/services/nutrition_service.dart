@@ -2,52 +2,32 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/nutrition_data.dart';
 import '../../profile/models/user_profile.dart';
+import '../../core/data/food_database.dart';
 
 class NutritionService {
-  static const String _baseUrl = 'https://world.openfoodfacts.org/api/v2/product';
-
   Future<NutritionData?> fetchProductData(String barcode) async {
-    try {
-      final response = await http.get(Uri.parse('$_baseUrl/$barcode.json'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 1) {
-          return NutritionData.fromJson(data);
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching product: $e');
-      return null;
-    }
+    // Phase 2 - local offline dataset lookup
+    return FoodDatabase().findFoodByBarcode(barcode);
   }
 
   Future<List<NutritionData>> fetchAlternatives(NutritionData product) async {
-    if (product.categories.isEmpty) return [];
-    
-    // Use the most specific category (usually the last one in tags)
-    final category = product.categories.last;
-    final url = 'https://world.openfoodfacts.org/cgi/search.pl?'
-        'action=process&'
-        'tagtype_0=categories&'
-        'tag_contains_0=contains&'
-        'tag_0=$category&'
-        'nutrition_grades=a,b&'
-        'sort_by=unique_scans_n&'
-        'page_size=5&'
-        'json=true';
+    // Phase 5 - Alternative product suggestion engine locally
+    // For local database, since categories aren't populated, we'll try to find similar items based on name words
+    if (product.productName.isEmpty) return [];
 
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List products = data['products'] ?? [];
-        return products.map((p) => NutritionData.fromJson({'product': p})).toList();
-      }
-    } catch (e) {
-      print('Error fetching alternatives: $e');
+    final keywords = product.productName.split(' ')
+        .where((word) => word.length > 3)
+        .toList();
+
+    List<NutritionData> alternatives = [];
+    if (keywords.isNotEmpty) {
+      // Find food that shares at least one keyword
+      alternatives = FoodDatabase().searchByName(keywords.first);
     }
-    return [];
+    
+    // Sort alternatives to find 'healthier' ones conceptually
+    // For now simply return the first few found in local DB
+    return alternatives.where((a) => a.productName != product.productName).take(3).toList();
   }
 
   ProductVerdict analyzeProduct(NutritionData product, UserProfile profile) {
@@ -94,13 +74,29 @@ class NutritionService {
     else if (energyKcal100 > 300) calorieRisk = 15;
 
     double additiveRisk = 0;
-    final refinedSugars = ['high fructose corn syrup', 'glucose syrup', 'corn syrup solids', 'maltose', 'added sugar'];
+    // Phase 4: Ingredient Analyzer
+    final refinedSugars = ['high fructose corn syrup', 'hfcs', 'glucose syrup', 'corn syrup solids', 'maltose', 'added sugar'];
     bool hasRefinedSugar = product.ingredients.any((ing) => refinedSugars.any((rs) => ing.toLowerCase().contains(rs)));
-    if (hasRefinedSugar) additiveRisk += 15;
+    if (hasRefinedSugar) {
+      additiveRisk += 15;
+      reasons.add("Highly processed ingredients detected: Refined sugars.");
+    }
 
-    final harmfulAdditives = ['artificial color', 'msg', 'aspartame', 'preservative', 'palm oil'];
+    final harmfulAdditives = ['e102', 'e110', 'e129', 'msg', 'aspartame', 'sucralose'];
+    final artificialProcessing = ['hydrogenated oil', 'artificial flavor', 'color additive', 'artificial color', 'palm oil'];
+    
+    bool hasArtificialSweetener = product.ingredients.any((ing) => ['aspartame', 'sucralose'].any((ha) => ing.toLowerCase().contains(ha)));
+    if (hasArtificialSweetener) {
+      reasons.add("Contains artificial sweeteners.");
+    }
+
     int additiveCount = product.ingredients.where((ing) => harmfulAdditives.any((ha) => ing.toLowerCase().contains(ha))).length;
-    additiveRisk += additiveCount * 5.0;
+    int processCount = product.ingredients.where((ing) => artificialProcessing.any((ap) => ing.toLowerCase().contains(ap))).length;
+    
+    additiveRisk += (additiveCount + processCount) * 5.0;
+    
+    if (additiveCount > 0) reasons.add("Contains chemical additives (e.g., E-numbers or MSG).");
+    if (processCount > 0) reasons.add("Highly processed ingredients detected (e.g., hydrogenated oil or artificial colors).");
 
     double fiberBonus = 0;
     if (fiber100 > 5) fiberBonus = 15;
@@ -145,6 +141,21 @@ class NutritionService {
 
     if (fiber100 > 3) {
       reasons.add("Fiber content (${fiber100.toStringAsFixed(1)}g) slows glucose absorption and improves digestion.");
+    }
+
+    // Phase 6: Gym / Fitness Mode
+    if (profile.dietType == 'Fitness / Gym') {
+      if (hasArtificialSweetener) {
+        riskScore += 20; // Aggressively penalize artificial sweeteners in fitness mode
+      }
+      if (sugar100 > 5 && energyKcal100 > 0) {
+        riskScore += 15;
+        reasons.add("High sugar for a fitness product / goal.");
+      }
+      // Since protein is not cleanly available right now, we focus on calorie density, sugar, and artificial sweetness
+      if (energyKcal100 > 400 && sugar100 > 10) {
+         reasons.add("High calorie density mainly from sugars; weak choice for clean bulking/cutting.");
+      }
     }
 
     // Diet types logic (e.g., Vegan)

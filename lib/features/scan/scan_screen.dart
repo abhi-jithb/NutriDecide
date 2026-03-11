@@ -83,7 +83,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     _scannedCode = code;
                     _isScanning = false;
                   });
-                  _showSuccessSheet(code);
+                  _analyzeProduct(code);
                 }
               }
             },
@@ -273,53 +273,6 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  void _showSuccessSheet(String code) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 64),
-              const SizedBox(height: 16),
-              const Text(
-                "Product Detected!",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text("Barcode: $code", style: const TextStyle(color: Colors.grey)),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  _analyzeProduct(code);
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                child: const Text("Analyze Ingredients"),
-              ),
-            ],
-          ),
-        );
-      },
-    ).then((_) {
-      if (mounted && _isScanning == false && _scannedCode != null) {
-        _controller.start(); // Resume if back from sheet without analysis
-        setState(() {
-          _isScanning = true;
-          _scannedCode = null;
-        });
-      }
-    });
-  }
-
   Future<void> _analyzeProduct(String code) async {
     // Show Loading
     showDialog(
@@ -335,8 +288,18 @@ class _ScanScreenState extends State<ScanScreen> {
 
     if (product == null || profile == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to fetch product data or profile.")),
+        showDialog(
+           context: context,
+           builder: (context) => AlertDialog(
+              title: const Text("Not Found"),
+              content: const Text("Product not available in offline database."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"),
+                )
+              ]
+           )
         );
         _controller.start(); // Resume camera on error
         setState(() {

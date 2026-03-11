@@ -70,6 +70,7 @@ flutter:
   assets:
     - assets/logo_black_bg.png
     - assets/logo_white_bg.png
+    - assets/data/foods_clean.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -145,6 +145,12 @@ A detailed breakdown of the codebase and its responsibilities:
 
 ## 📜 Log of Changes
 
+### **📅 2026-03-11: V1.5 Offline Architecture & Ingredient Intelligence**
+*   **Offline Data System:** Converted barcode product queries to scan natively against a local JSON dataset, eliminating external API usage and enabling app use without Wi-Fi.
+*   **Ingredient Analyzer:** Integrated advanced regex logic to detect red-line food additives and processing methods (E102, MSG, Sucralose, Hydrogenated oils).
+*   **Gym / Fitness Mode:** Rewrote inference engine logic to intelligently apply stricter sugar thresholds and anti-artificial-sweetener rules if a user is operating on a 'Fitness / Gym' plan.
+*   **Flow Optimization:** Streamlined UI from a 2-tap to a highly responsive 1-tap "Scan to Verdict" system.
+
 ### **📅 2026-03-10: Branding & Vision Refinement**
 *   **Dynamic Theme Logos:** Implemented theme-aware logo assets (`logo_black_bg.png`, `logo_white_bg.png`) that adapt to the user's system preferences.
 *   **Animated Splash Screen:** Engineered a premium entry experience with an `easeIn` fade transition and unified branding.

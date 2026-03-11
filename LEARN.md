@@ -89,6 +89,12 @@ The project's latest evolution focuses on **Regional AI**. Many foods in India (
 - **Moonshot Upgrade:** Transformed the AR toggle into an animated, node-based overlay mimicking real-time OCR label processing.
 - **NLU Precision:** Elevated the NLP engine logic to interpret natural human portioning ("half") and multi-dish combinations cleanly.
 
+### **V1.5: Offline Architecture & Advanced Inference Engine (March 11, 2026)**
+- **Offline Dataset System:** Migrated barcode scanning away from the OpenFoodFacts API to natively scan against `FoodDatabase` (`foods_clean.json`), operating completely offline.
+- **Ingredient Analyzer Engine:** Added deep regex scanning for processing agents & additives (e.g. Sucralose, Aspartame, E102, Hydrogenated Oils, MSG).
+- **Gym & Fitness Logic Module:** Built a specialized logical pathway triggering custom penalizations (anti-sugar/anti-artificial bounds) when the user profile explicitly operates under a 'Fitness / Gym' framework.
+- **Micro-Optimization:** Removed intermediate 'Product Found' UI overlay, streamlining the 'One-Tap Scan' architectural flow.
+
 ---
 
 ## 🗺️ Information Mapping

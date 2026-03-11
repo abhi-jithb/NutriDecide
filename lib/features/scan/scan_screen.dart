@@ -4,7 +4,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/nutrition_service.dart';
 import 'presentation/verdict_screen.dart';
 import '../profile/data/profile_repository.dart';
-import 'models/nutrition_data.dart';
 import 'models/scan_history_item.dart';
 import 'data/scan_repository.dart';
 
@@ -19,7 +18,7 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _hasPermission = false;
   bool _isScanning = true;
   String? _scannedCode;
-  final MobileScannerController _controller = MobileScannerController();
+  final MobileScannerController _scannerController = MobileScannerController();
   final NutritionService _nutritionService = NutritionService();
   final ProfileRepository _profileRepository = ProfileRepository();
   bool _isArMode = false;
@@ -32,7 +31,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _scannerController.dispose();
     super.dispose();
   }
 
@@ -71,14 +70,14 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Stack(
         children: [
           MobileScanner(
-            controller: _controller,
+            controller: _scannerController,
             onDetect: (capture) {
               if (!_isScanning) return;
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
                 final code = barcodes.first.rawValue;
                 if (code != null) {
-                  _controller.stop(); // Stop camera surface to save resources
+                  _scannerController.stop();
                   setState(() {
                     _scannedCode = code;
                     _isScanning = false;
@@ -88,9 +87,10 @@ class _ScanScreenState extends State<ScanScreen> {
               }
             },
           ),
+
           // Scanner Overlay
           _buildOverlay(),
-          
+
           // Back Button
           Positioned(
             top: 50,
@@ -104,20 +104,26 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
 
+          // AR Toggle Button
           Positioned(
             top: 50,
             right: 20,
             child: CircleAvatar(
-              backgroundColor: _isArMode ? Colors.green : Colors.blue.withOpacity(0.8),
+              backgroundColor:
+                  _isArMode ? Colors.green : Colors.blue.withOpacity(0.8),
               child: IconButton(
-                icon: Icon(_isArMode ? Icons.auto_awesome : Icons.auto_awesome_motion, color: Colors.white),
+                icon: Icon(
+                    _isArMode
+                        ? Icons.auto_awesome
+                        : Icons.auto_awesome_motion,
+                    color: Colors.white),
                 onPressed: () {
                   setState(() => _isArMode = !_isArMode);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(_isArMode 
-                        ? "AR Overlay Mode Enabled (Moonshot): Real-time analysis active." 
-                        : "AR Overlay Mode Disabled."),
+                      content: Text(_isArMode
+                          ? "AR Overlay Mode Enabled (Moonshot): Real-time analysis active."
+                          : "AR Overlay Mode Disabled."),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -125,10 +131,11 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
           ),
-          
-          if (_isArMode)
-            _buildArIndicators(),
-          
+
+          // AR Overlay
+          if (_isArMode) const _ArSimulatedOverlay(),
+
+          // Scan Again Button
           if (!_isScanning)
             Positioned(
               bottom: 100,
@@ -136,7 +143,7 @@ class _ScanScreenState extends State<ScanScreen> {
               right: 40,
               child: ElevatedButton(
                 onPressed: () {
-                  _controller.start(); // Resume camera
+                  _scannerController.start();
                   setState(() {
                     _isScanning = true;
                     _scannedCode = null;
@@ -155,10 +162,126 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  Widget _buildArIndicators() {
-    return const _ArSimulatedOverlay();
+  Widget _buildOverlay() {
+    return Stack(
+      children: [
+        ColorFiltered(
+          colorFilter: ColorFilter.mode(
+            Colors.black.withOpacity(0.5),
+            BlendMode.srcOut,
+          ),
+          child: Stack(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  backgroundBlendMode: BlendMode.dstOut,
+                ),
+              ),
+              Center(
+                child: Container(
+                  height: 250,
+                  width: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Center(
+          child: Container(
+            height: 250,
+            width: 250,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.green, width: 4),
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ),
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.only(top: 300),
+            child: Text(
+              "Place barcode inside the frame",
+              style: TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _analyzeProduct(String code) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          const Center(child: CircularProgressIndicator()),
+    );
+
+    final product = await _nutritionService.fetchProductData(code);
+    final profile = await _profileRepository.getProfile();
+
+    if (mounted) Navigator.pop(context);
+
+    if (product == null || profile == null) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Not Found"),
+            content:
+                const Text("Product not available in offline database."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              )
+            ],
+          ),
+        );
+        _scannerController.start();
+        setState(() {
+          _isScanning = true;
+          _scannedCode = null;
+        });
+      }
+      return;
+    }
+
+    final verdict = _nutritionService.analyzeProduct(product, profile);
+
+    await ScanRepository().saveScan(ScanHistoryItem(
+      barcode: code,
+      productName: product.productName,
+      verdict: verdict.verdict.name.toUpperCase(),
+      timestamp: DateTime.now(),
+    ));
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerdictScreen(product: product, verdict: verdict),
+        ),
+      ).then((_) {
+        if (mounted) {
+          _scannerController.start();
+          setState(() {
+            _isScanning = true;
+            _scannedCode = null;
+          });
+        }
+      });
+    }
   }
 }
+
+// ─── AR Simulated Overlay (Separate Widget) ───────────────────────────────────
 
 class _ArSimulatedOverlay extends StatefulWidget {
   const _ArSimulatedOverlay();
@@ -167,20 +290,21 @@ class _ArSimulatedOverlay extends StatefulWidget {
   State<_ArSimulatedOverlay> createState() => _ArSimulatedOverlayState();
 }
 
-class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _animController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1500))
       ..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
@@ -192,16 +316,18 @@ class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTic
           width: 300,
           height: 300,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.greenAccent.withOpacity(0.3), width: 2),
+            border: Border.all(
+                color: Colors.greenAccent.withOpacity(0.3), width: 2),
             borderRadius: BorderRadius.circular(30),
           ),
           child: Stack(
             children: [
+              // Sweeping scanner line
               AnimatedBuilder(
-                animation: _controller,
+                animation: _animController,
                 builder: (context, child) {
                   return Positioned(
-                    top: _controller.value * 280, // Sweeping line
+                    top: _animController.value * 280,
                     left: 0,
                     right: 0,
                     child: Container(
@@ -209,7 +335,10 @@ class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTic
                       decoration: BoxDecoration(
                         color: Colors.greenAccent,
                         boxShadow: [
-                          BoxShadow(color: Colors.greenAccent.withOpacity(0.8), blurRadius: 10, spreadRadius: 3)
+                          BoxShadow(
+                              color: Colors.greenAccent.withOpacity(0.8),
+                              blurRadius: 10,
+                              spreadRadius: 3)
                         ],
                       ),
                     ),
@@ -219,7 +348,8 @@ class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTic
               Positioned(
                 top: 20,
                 left: 20,
-                child: _buildArNode("Scrutinizing Ingredients...", Colors.green),
+                child:
+                    _buildArNode("Scrutinizing Ingredients...", Colors.green),
               ),
               Positioned(
                 top: 80,
@@ -227,14 +357,15 @@ class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTic
                 child: _buildArNode("Est: 250 kcal", Colors.blueAccent),
               ),
               AnimatedBuilder(
-                animation: _controller,
+                animation: _animController,
                 builder: (context, child) {
                   return Positioned(
                     bottom: 60,
                     left: 10,
                     child: Opacity(
-                      opacity: 0.5 + (_controller.value * 0.5),
-                      child: _buildArNode("⚠️ Allergy Redline Detected", Colors.redAccent),
+                      opacity: 0.5 + (_animController.value * 0.5),
+                      child: _buildArNode(
+                          "⚠️ Allergy Redline Detected", Colors.redAccent),
                     ),
                   );
                 },
@@ -264,128 +395,13 @@ class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay> with SingleTic
         children: [
           Icon(Icons.radar, size: 12, color: color),
           const SizedBox(width: 8),
-          Text(text, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+          Text(text,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
-  }
-
-  Widget _buildOverlay() {
-    return Stack(
-      children: [
-        // Darken the outside area
-        ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.5),
-            BlendMode.srcOut,
-          ),
-          child: Stack(
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  backgroundBlendMode: BlendMode.dstOut,
-                ),
-              ),
-              Center(
-                child: Container(
-                  height: 250,
-                  width: 250,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Frame
-        Center(
-          child: Container(
-            height: 250,
-            width: 250,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.green, width: 4),
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
-        const Center(
-          child: Padding(
-            padding: EdgeInsets.only(top: 300),
-            child: Text(
-              "Place barcode inside the frame",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _analyzeProduct(String code) async {
-    // Show Loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    final product = await _nutritionService.fetchProductData(code);
-    final profile = await _profileRepository.getProfile();
-
-    if (mounted) Navigator.pop(context); // Hide loading
-
-    if (product == null || profile == null) {
-      if (mounted) {
-        showDialog(
-           context: context,
-           builder: (context) => AlertDialog(
-              title: const Text("Not Found"),
-              content: const Text("Product not available in offline database."),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("OK"),
-                )
-              ]
-           )
-        );
-        _controller.start(); // Resume camera on error
-        setState(() {
-          _isScanning = true;
-          _scannedCode = null;
-        });
-      }
-      return;
-    }
-
-    final verdict = _nutritionService.analyzeProduct(product, profile);
-
-    // Save to History
-    await ScanRepository().saveScan(ScanHistoryItem(
-      barcode: code,
-      productName: product.productName,
-      verdict: verdict.verdict.name.toUpperCase(),
-      timestamp: DateTime.now(),
-    ));
-
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerdictScreen(product: product, verdict: verdict),
-        ),
-      ).then((_) {
-         if (mounted) {
-          _controller.start(); // Resume camera when back from verdict
-          setState(() {
-            _isScanning = true;
-            _scannedCode = null;
-          });
-        }
-      });
-    }
   }
 }

@@ -2,12 +2,30 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/nutrition_data.dart';
 import '../../profile/models/user_profile.dart';
-import '../../core/data/food_database.dart';
+import '../../../core/data/food_database.dart';
 
 class NutritionService {
+  static const String _baseUrl = 'https://world.openfoodfacts.org/api/v2/product';
+
   Future<NutritionData?> fetchProductData(String barcode) async {
-    // Phase 2 - local offline dataset lookup
-    return FoodDatabase().findFoodByBarcode(barcode);
+    // Phase 2 - local offline dataset lookup first
+    final localData = FoodDatabase().findFoodByBarcode(barcode);
+    if (localData != null) return localData;
+
+    // Fallback to OpenFoodFacts API if not in offline database
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/$barcode.json'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 1) {
+          return NutritionData.fromJson(data);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching product: $e');
+      return null;
+    }
   }
 
   Future<List<NutritionData>> fetchAlternatives(NutritionData product) async {

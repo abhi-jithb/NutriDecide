@@ -21,6 +21,11 @@
 
 </div>
 
+## 📄 Technical Documentation
+For a deep dive into the system architecture, performance optimizations (O(1) lookup), and the core inference engines, please refer to the [Technical Documentation](.gemini/antigravity/brain/21f6820e-3455-4762-acd6-c32306178aa9/DOCUMENTATION.md).
+
+<br/>
+
 ## 🚀 Project Vision
 
 Most apps just show you numbers. This one **reasons** about them.

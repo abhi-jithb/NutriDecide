@@ -6,11 +6,13 @@ import '../services/nutrition_service.dart';
 class VerdictScreen extends StatelessWidget {
   final NutritionData product;
   final ProductVerdict verdict;
+  final UserProfile profile;
 
   const VerdictScreen({
     super.key,
     required this.product,
     required this.verdict,
+    required this.profile,
   });
 
   @override
@@ -144,7 +146,7 @@ class VerdictScreen extends StatelessWidget {
 
             // Better Alternatives (Phase 4a: Swap Engine)
             if (verdict.verdict != Verdict.good)
-              _BetterAlternativesSection(product: product),
+              _BetterAlternativesSection(product: product, profile: profile),
 
             const SizedBox(height: 32),
             
@@ -186,8 +188,9 @@ class VerdictScreen extends StatelessWidget {
 
 class _BetterAlternativesSection extends StatelessWidget {
   final NutritionData product;
+  final UserProfile profile;
 
-  const _BetterAlternativesSection({required this.product});
+  const _BetterAlternativesSection({required this.product, required this.profile});
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +208,7 @@ class _BetterAlternativesSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FutureBuilder<List<NutritionData>>(
-          future: NutritionService().fetchAlternatives(product),
+          future: NutritionService().fetchAlternatives(product, profile),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());

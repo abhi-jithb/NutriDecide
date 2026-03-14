@@ -266,7 +266,11 @@ class _ScanScreenState extends State<ScanScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => VerdictScreen(product: product, verdict: verdict),
+          builder: (_) => VerdictScreen(
+            product: product,
+            verdict: verdict,
+            profile: profile,
+          ),
         ),
       ).then((_) {
         if (mounted) {

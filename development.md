@@ -44,4 +44,4 @@ Once the backend is live, you must tell the Flutter application where to find it
 
 ## Future Implementations Needed (Next Priority)
 *   **Firebase Authentication**: Replacing local profile storage to enable the "Family Sharing" feature natively.
-*   **True AR Integration**: Connect Google ML Kit Text Recognition to the live camera feed to parse ingredient labels purely through OCR, migrating the current "Moonshot" Beta UI into functional reality.
+*   **True AR Integration**: Connect Google ML Kit Text Recognition to the live camera feed to parse ingredient labels purely through OCR, migrating the current "Moonshot" Beta UI into functional reality

@@ -74,7 +74,11 @@ class _VoiceLogScreenState extends State<VoiceLogScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => VerdictScreen(product: food, verdict: verdict),
+          builder: (context) => VerdictScreen(
+            product: food,
+            verdict: verdict,
+            profile: profile,
+          ),
         ),
       );
     } else {

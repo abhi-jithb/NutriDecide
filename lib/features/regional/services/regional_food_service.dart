@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../scan/models/nutrition_data.dart';
 
 class RegionalFoodService {
-  // Using local IP to allow physical mobile devices to connect
-  static const String _baseUrl = 'http://192.168.29.159:5000/api';
+  final String _baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://192.168.29.159:5000/api';
 
   Future<NutritionData?> searchFood(String query) async {
     print('Searching regional food for voice query: "$query"');

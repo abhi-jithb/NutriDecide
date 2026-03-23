@@ -1,0 +1,47 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
+/// A production-ready authentication service for NutriDecide.
+/// Handles login, logout, and auth state management.
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  User? get currentUser => _auth.currentUser;
+
+  Future<UserCredential?> loginWithEmail(String email, String password) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(email: email, password: password);
+    } catch (e) {
+      debugPrint('❌ AuthService Login Error: $e');
+      rethrow;
+    }
+  }
+
+  Future<UserCredential?> registerWithEmail(String email, String password) async {
+    try {
+      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    } catch (e) {
+      debugPrint('❌ AuthService Signup Error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('❌ AuthService Logout Error: $e');
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      debugPrint('❌ AuthService Reset Error: $e');
+      rethrow;
+    }
+  }
+}

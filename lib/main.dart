@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'app.dart';
-import 'core/data/food_database_service.dart';
+import 'core/services/app_initializer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FoodDatabaseService().initializeDatabase();
+  
+  // High-performance parallel startup (DotEnv, Firebase, Hive, Database)
+  await AppInitializer().initialize();
+  
   runApp(const MyApp());
 }

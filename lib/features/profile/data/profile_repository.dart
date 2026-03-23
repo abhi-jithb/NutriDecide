@@ -1,27 +1,63 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
 
+/// Production-ready User Profile Repository using Cloud Firestore.
+/// Manages user health DNA profile synchronization across devices.
 class ProfileRepository {
-  static const String _profileKey = 'user_profile';
+  static final ProfileRepository _instance = ProfileRepository._internal();
+  factory ProfileRepository() => _instance;
+  ProfileRepository._internal();
 
-  Future<void> saveProfile(UserProfile profile) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_profileKey, profile.toJson());
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  String? get currentUid => _auth.currentUser?.uid;
+
+  CollectionReference get _profiles => _firestore.collection('profiles');
+
+  /// Fetches the user profile from Cloud Firestore for the currently logged-in user.
+  /// If it doesn't exist, returns null.
+  Future<UserProfile?> fetchProfile() async {
+    final uid = currentUid;
+    if (uid == null) return null;
+
+    try {
+      final doc = await _profiles.doc(uid).get();
+      if (doc.exists) {
+        return UserProfile.fromMap(doc.data() as Map<String, dynamic>);
+      }
+    } catch (e) {
+      debugPrint('❌ ProfileRepository fetch Error: $e');
+    }
+    return null;
   }
 
-  Future<UserProfile?> getProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final profileJson = prefs.getString(_profileKey);
-    if (profileJson == null) return null;
+  /// Saves or updates the user health DNA profile to Cloud Firestore.
+  Future<void> saveProfile(UserProfile profile) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('No user logged in to save profile');
+
     try {
-      return UserProfile.fromJson(profileJson);
+      await _profiles.doc(uid).set(profile.toMap(), SetOptions(merge: true));
+      debugPrint('✅ Profile synchronized for user: $uid');
     } catch (e) {
-      return null;
+      debugPrint('❌ ProfileRepository save Error: $e');
+      rethrow;
     }
   }
 
-  Future<void> clearProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileKey);
+  /// Subscribes to profile changes for real-time suitability updates.
+  Stream<UserProfile?> profileStream() {
+    final uid = currentUid;
+    if (uid == null) return Stream.value(null);
+
+    return _profiles.doc(uid).snapshots().map((snapshot) {
+      if (snapshot.exists) {
+        return UserProfile.fromMap(snapshot.data() as Map<String, dynamic>);
+      }
+      return null;
+    });
   }
 }

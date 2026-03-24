@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 🔥 PRODUCTION SECURE RULES FOR NUTRIDECIDE
+    
+    // Match the profiles collection where health DNA is stored
+    match /profiles/{userId} {
+      // 🔒 AUTH GUARD: Only the owner of the UID can read or write their health profile.
+      // This prevents data leaks between users.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Match the global regional food database (if we move it from MongoDB to Firestore later)
+    match /regional_foods/{foodId} {
+      // 🔓 READ ONLY: All authenticated users can search foods, but only admins can edit.
+      allow read: if request.auth != null;
+      allow write: if false; // Only manageable via Firebase Admin SDK or Console
+    }
+    
+    // Default: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

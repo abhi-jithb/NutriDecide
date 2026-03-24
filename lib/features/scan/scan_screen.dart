@@ -219,68 +219,75 @@ class _ScanScreenState extends State<ScanScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) =>
-          const Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    final product = await _nutritionService.fetchProductData(code);
-    final profile = await _profileRepository.getProfile();
+    try {
+      final product = await _nutritionService.fetchProductData(code);
+      final profile = await _profileRepository.fetchProfile();
 
-    if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); // Hide loader
 
-    if (product == null || profile == null) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Not Found"),
-            content:
-                const Text("Product not available in offline database."),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
-              )
-            ],
-          ),
-        );
-        _scannerController.start();
-        setState(() {
-          _isScanning = true;
-          _scannedCode = null;
-        });
-      }
-      return;
-    }
-
-    final verdict = _nutritionService.analyzeProduct(product, profile);
-
-    await ScanRepository().saveScan(ScanHistoryItem(
-      barcode: code,
-      productName: product.productName,
-      verdict: verdict.verdict.name.toUpperCase(),
-      timestamp: DateTime.now(),
-    ));
-
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerdictScreen(
-            product: product,
-            verdict: verdict,
-            profile: profile,
-          ),
-        ),
-      ).then((_) {
+      if (product == null || profile == null) {
         if (mounted) {
-          _scannerController.start();
-          setState(() {
-            _isScanning = true;
-            _scannedCode = null;
-          });
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("🔍 Product not found in database."),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          _restartScanning();
         }
+        return;
+      }
+
+      final verdict = _nutritionService.analyzeProduct(product, profile);
+
+      await ScanRepository().saveScan(ScanHistoryItem(
+        barcode: code,
+        productName: product.productName,
+        verdict: verdict.verdict.name.toUpperCase(),
+        timestamp: DateTime.now(),
+      ));
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VerdictScreen(
+              product: product,
+              verdict: verdict,
+              profile: profile,
+            ),
+          ),
+        ).then((_) => _restartScanning());
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      _handleScanError(e);
+    }
+  }
+
+  void _restartScanning() {
+    if (mounted) {
+      _scannerController.start();
+      setState(() {
+        _isScanning = true;
+        _scannedCode = null;
       });
+    }
+  }
+
+  void _handleScanError(dynamic error) {
+    debugPrint('❌ Scan Analysis Error: $error');
+    if (mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error analyzing product: ${error.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      _restartScanning();
     }
   }
 }

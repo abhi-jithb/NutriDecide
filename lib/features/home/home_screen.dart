@@ -6,7 +6,7 @@ import '../scan/models/scan_history_item.dart';
 import '../scan/data/scan_repository.dart';
 import 'services/meal_suggestion_service.dart';
 import 'services/pattern_coach_service.dart';
-import '../scan/services/risk_analysis_service.dart';
+import 'services/health_score_service.dart';
 import '../../core/theme/app_theme.dart';
 import 'voice_log_screen.dart';
 import '../scan/presentation/history_screen.dart';
@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final ScanRepository _scanRepo = ScanRepository();
   final ProfileRepository _profileRepo = ProfileRepository();
   final MealSuggestionService _mealService = MealSuggestionService();
@@ -28,11 +28,31 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ScanHistoryItem> _history = [];
   List<MealSuggestion> _suggestions = [];
   bool _isLoading = true;
+  double _healthScore = 100.0;
+  int _streak = 0;
+  String _dailyGoal = "";
+
+  late AnimationController _scoreController;
+  late Animation<double> _scoreAnimation;
 
   @override
   void initState() {
     super.initState();
+    _scoreController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    _scoreAnimation = Tween<double>(begin: 0, end: 100).animate(CurvedAnimation(
+      parent: _scoreController,
+      curve: Curves.easeOutCubic,
+    ));
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _scoreController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -40,15 +60,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final profile = await _profileRepo.getProfile();
     final history = await _scanRepo.getHistory();
     
-    List<MealSuggestion> suggestions = [];
     if (profile != null) {
-      suggestions = _mealService.getSuggestions(profile, history);
+      _healthScore = HealthScoreService.calculateDailyScore(history, profile);
+      _streak = HealthScoreService.getStreak(history);
+      _dailyGoal = HealthScoreService.getDailyGoal(history);
+      _suggestions = _mealService.getSuggestions(profile, history);
+      
+      _scoreAnimation = Tween<double>(begin: 0, end: _healthScore).animate(CurvedAnimation(
+        parent: _scoreController,
+        curve: Curves.easeOutCubic,
+      ));
+      _scoreController.forward(from: 0);
     }
     
     setState(() {
       _profile = profile;
       _history = history;
-      _suggestions = suggestions;
       _isLoading = false;
     });
   }
@@ -59,82 +86,35 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final today = DateTime.now();
-    final riskyToday = _history.where((s) => 
-      s.timestamp.year == today.year && 
-      s.timestamp.month == today.month && 
-      s.timestamp.day == today.day &&
-      (s.verdict.contains("AVOID") || s.verdict.contains("CAUTION"))
-    ).length;
+    if (_profile == null) {
+      return const Scaffold(body: Center(child: Text("Profile missing")));
+    }
 
     final coachInsight = _coachService.generateInsight(_history, _profile!);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              expandedHeight: 80,
-              floating: false,
-              pinned: true,
-              flexibleSpace: FlexibleSpaceBar(
-                title: const Text(
-                  "NutriDecide Intelligence",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-              ),
-            ),
+            _buildCustomHeader(context),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Daily Guidance - Compact
-                    const Text(
-                      "Daily Guidance",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildProminentGuidance(),
-                    
                     const SizedBox(height: 24),
-
-                    // Scan Your Food - Important
-                    if (riskyToday >= 2) _buildSmartAlert(riskyToday),
-                    _buildScanCentral(),
-
+                    _buildDailyGoalBanner(),
                     const SizedBox(height: 32),
-
-                    // Health Ecosystem
-                    const Text(
-                      "Health Ecosystem",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInnovationActions(context),
+                    _buildLogCoreSection(context),
+                    const SizedBox(height: 40),
+                    _buildPatternsAndInsights(coachInsight),
                     const SizedBox(height: 32),
-
-                    // AI Pattern Coach Section (Phase 5)
-                    _buildPatternCoachSection(coachInsight),
-                    const SizedBox(height: 24),
-                    
                     _buildRecentSection(),
-                    const SizedBox(height: 100), // Extra space for bottom nav
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -145,287 +125,242 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildInnovationActions(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          ActionChip(
-            avatar: const Icon(Icons.mic_none, size: 18, color: Colors.blue),
-            label: const Text("Voice Regional AI"),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const VoiceLogScreen()),
+  Widget _buildCustomHeader(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: 280,
+      backgroundColor: Colors.white,
+      pinned: true,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).colorScheme.primary,
+                Theme.of(context).colorScheme.primary.withOpacity(0.85),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            backgroundColor: Colors.blue.withOpacity(0.05),
           ),
-          const SizedBox(width: 12),
-          ActionChip(
-            avatar: const Icon(Icons.family_restroom_rounded, size: 18, color: Colors.orange),
-            label: const Text("Family Mode"),
-            onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Family Mode: Linking profiles for Kerala homes soon!")),
-              );
-            },
-            backgroundColor: Colors.orange.withOpacity(0.05),
-          ),
-          const SizedBox(width: 12),
-          ActionChip(
-            avatar: const Icon(Icons.health_and_safety_rounded, size: 18, color: Colors.green),
-            label: const Text("Festival Mode"),
-            onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Festival Mode: Adjusting for Onam feast logic!")),
-              );
-            },
-            backgroundColor: Colors.green.withOpacity(0.05),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPatternCoachSection(PatternCoachInsight insight) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.indigo.shade900, Colors.indigo.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -10,
-            top: -10,
-            child: Icon(Icons.psychology, size: 80, color: Colors.white.withOpacity(0.05)),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          child: SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(height: 20),
+                const Text(
+                  "DAILY HEALTH SCORE",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                AnimatedBuilder(
+                  animation: _scoreAnimation,
+                  builder: (context, child) {
+                    return Text(
+                      _scoreAnimation.value.toInt().toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 84,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    );
+                  },
+                ),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.bolt, color: Colors.amber, size: 16),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.bolt_rounded, color: Colors.amber, size: 20),
+                    const SizedBox(width: 4),
                     Text(
-                      "COACH INSIGHT",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 10,
+                      "$_streak DAY STREAK",
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                        fontSize: 14,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  insight.title,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  insight.suggestion,
-                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12, fontWeight: FontWeight.w500),
-                ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildProminentGuidance() {
-    if (_suggestions.isEmpty) return const SizedBox.shrink();
-    
+  Widget _buildDailyGoalBanner() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(_getIconData(_suggestions.first.icon), size: 14, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _suggestions.first.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _suggestions.first.description,
-            style: const TextStyle(fontSize: 11, color: Colors.black87, height: 1.2),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmartAlert(int count) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+          Icon(Icons.flag_circle_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
           const SizedBox(width: 16),
           Expanded(
-            child: Column(
+            child: Text(
+              _dailyGoal,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogCoreSection(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildLogTile(
+            context: context,
+            title: "Scan Barcode",
+            subtitle: "Instant Analysis",
+            icon: Icons.qr_code_scanner_rounded,
+            color: Theme.of(context).colorScheme.primary,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ScanScreen()),
+            ).then((_) => _loadData()),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildLogTile(
+            context: context,
+            title: "Voice Log",
+            subtitle: "Street Foods AI",
+            icon: Icons.mic_none_outlined,
+            color: Colors.blue.shade700,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VoiceLogScreen()),
+            ).then((_) => _loadData()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogTile({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        height: 180,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("High Risk Alert", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                 Text(
-                  "You've scanned $count risky items today. Limit processed intake.",
-                  style: TextStyle(color: Colors.red.withOpacity(0.8), fontSize: 12),
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildScanCentral() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+  Widget _buildPatternsAndInsights(PatternCoachInsight insight) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Personalized Intelligence",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(24),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.qr_code_scanner_rounded, 
-              size: 80, 
-              color: Theme.of(context).colorScheme.primary),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            "Scan Your Food",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Instant health analysis for any product",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 15),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ScanScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(200, 60),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.camera_alt_outlined),
-                SizedBox(width: 12),
-                Text("OPEN SCANNER", style: TextStyle(letterSpacing: 1.1)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuggestionsList() {
-    return SizedBox(
-      height: 150,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _suggestions.length,
-        itemBuilder: (context, index) {
-          final s = _suggestions[index];
-          return Container(
-            width: 240,
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(_getIconData(s.icon), size: 20, color: Theme.of(context).colorScheme.secondary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(s.title, 
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.amber, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    "AI COACH SAYS",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      letterSpacing: 1.5,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(s.description, 
-                  style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
-                  maxLines: 3, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          );
-        },
-      ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                insight.title,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                insight.suggestion,
+                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
-  }
-
-  IconData _getIconData(String name) {
-    switch (name) {
-      case 'eco': return Icons.eco_outlined;
-      case 'bloodtype': return Icons.bloodtype_outlined;
-      case 'heart_broken': return Icons.heart_broken_outlined;
-      case 'restaurant': return Icons.restaurant_outlined;
-      case 'water_drop': return Icons.water_drop_outlined;
-      default: return Icons.tips_and_updates_outlined;
-    }
   }
 
   Widget _buildRecentSection() {
@@ -436,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              "Recent Scans",
+              "Recent Logs",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             if (_history.isNotEmpty)
@@ -444,16 +379,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ScanHistoryScreen()),
-                ).then((_) => _loadData()), // Reload if history was cleared or updated
+                ).then((_) => _loadData()),
                 child: const Text("View All"),
               ),
           ],
         ),
         const SizedBox(height: 12),
         if (_history.isEmpty)
-          const Center(child: Text("No scans today", style: TextStyle(color: Colors.grey)))
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40.0),
+              child: Text("No nutrition logs for today.", style: TextStyle(color: Colors.grey.shade400)),
+            ),
+          )
         else
-          ..._history.take(3).map((item) => _buildRecentItem(item)),
+          ..._history.take(4).map((item) => _buildRecentItem(item)),
       ],
     );
   }
@@ -461,35 +401,40 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildRecentItem(ScanHistoryItem item) {
     final color = _getStatusColor(item.verdict);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(15),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.restaurant_rounded, color: color, size: 20),
           ),
-          child: Icon(Icons.fastfood_outlined, color: color),
-        ),
-        title: Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text(item.barcode, style: const TextStyle(fontSize: 11)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(item.verdict, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
-          child: Text(item.verdict, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-        ),
+          Text(
+            "${item.timestamp.hour}:${item.timestamp.minute.toString().padLeft(2, '0')}",
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          ),
+        ],
       ),
     );
   }
 
   Color _getStatusColor(String verdict) {
-    if (verdict.contains("GOOD")) return Colors.green;
-    if (verdict.contains("CAUTION")) return Colors.orange;
-    if (verdict.contains("AVOID")) return Colors.red;
+    if (verdict.contains("GOOD")) return Colors.green.shade600;
+    if (verdict.contains("CAUTION")) return Colors.orange.shade600;
+    if (verdict.contains("AVOID")) return Colors.red.shade600;
     return Colors.grey;
   }
 }

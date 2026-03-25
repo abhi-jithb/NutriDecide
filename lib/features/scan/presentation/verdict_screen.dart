@@ -98,7 +98,37 @@ class VerdictScreen extends StatelessWidget {
                       color: color,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  
+                  // Score Impact Indicator
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          verdict.verdict == Verdict.good ? Icons.add_circle : Icons.remove_circle,
+                          color: color,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "SCORE IMPACT: ${verdict.verdict == Verdict.good ? '+5' : (verdict.verdict == Verdict.caution ? '-8' : '-20')}",
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                   const Text(
                     "Analysis Details",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),

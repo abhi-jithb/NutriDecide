@@ -31,6 +31,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool diabetes = false;
   bool hypertension = false;
   bool pcos = false;
+  bool _isLoading = false;
 
   final List<String> allergies = [];
   final List<String> intolerances = [];
@@ -64,116 +65,89 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              const Text("Measurements",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: heightController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Height (cm)"),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.straighten, color: Colors.teal),
+                          const SizedBox(width: 8),
+                          const Text("Measurements", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      TextField(
+                        controller: heightController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: "Height (cm)", hintText: "e.g. 175"),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: weightController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: "Current Weight (kg)", hintText: "e.g. 70"),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: weightController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Weight (kg)"),
-              ),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                value: selectedGender,
-                decoration: const InputDecoration(labelText: "Gender"),
-                items: ["Male", "Female", "Prefer not to say"]
-                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                    .toList(),
-                onChanged: (value) => setState(() => selectedGender = value),
-              ),
-
               const SizedBox(height: 24),
 
-              const Text("Goals",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Biological Gender", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                value: selectedGoal,
-                decoration: const InputDecoration(labelText: "Goal"),
-                items: ["Weight Loss", "Maintain", "Weight Gain"]
-                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                    .toList(),
-                onChanged: (value) => setState(() => selectedGoal = value),
+              Wrap(
+                spacing: 8,
+                children: ["Male", "Female", "Other"].map((g) {
+                  return ChoiceChip(
+                    label: Text(g),
+                    selected: selectedGender == g,
+                    onSelected: (val) => setState(() => selectedGender = val ? g : null),
+                  );
+                }).toList(),
               ),
+
+              const SizedBox(height: 32),
+              const Text("Primary Goal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-
-              TextField(
-                controller: targetWeightController,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: "Target Weight (kg)"),
+              Wrap(
+                spacing: 8,
+                children: ["Weight Loss", "Maintain", "Weight Gain"].map((g) {
+                  return ChoiceChip(
+                    label: Text(g),
+                    selected: selectedGoal == g,
+                    onSelected: (val) => setState(() => selectedGoal = val ? g : null),
+                  );
+                }).toList(),
               ),
+
+              const SizedBox(height: 32),
+              const Text("Diet Type", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                value: selectedActivity,
-                decoration: const InputDecoration(labelText: "Activity Level"),
-                items: [
-                  "Sedentary",
-                  "Lightly Active",
-                  "Moderately Active",
-                  "Very Active"
-                ]
-                    .map((a) => DropdownMenuItem(value: a, child: Text(a)))
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => selectedActivity = value),
-              ),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                value: selectedDiet,
-                decoration: const InputDecoration(labelText: "Diet Type"),
-                items: [
-                  "No Restriction",
-                  "Vegan",
-                  "Vegetarian",
-                  "Keto",
-                  "Low-carb"
-                ]
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (value) => setState(() => selectedDiet = value),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ["No Restriction", "Vegan", "Vegetarian", "Keto", "Low-carb"].map((d) {
+                  return ChoiceChip(
+                    label: Text(d),
+                    selected: selectedDiet == d,
+                    onSelected: (val) => setState(() => selectedDiet = val ? d : null),
+                  );
+                }).toList(),
               ),
 
-              const SizedBox(height: 24),
-
-              const Text("Health Conditions",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-
-              CheckboxListTile(
-                title: const Text("Diabetes"),
-                value: diabetes,
-                onChanged: (val) => setState(() => diabetes = val!),
-              ),
-
-              CheckboxListTile(
-                title: const Text("Hypertension"),
-                value: hypertension,
-                onChanged: (val) => setState(() => hypertension = val!),
-              ),
-
-              CheckboxListTile(
-                title: const Text("PCOS"),
-                value: pcos,
-                onChanged: (val) => setState(() => pcos = val!),
-              ),
-
-              const SizedBox(height: 30),
-
+              const SizedBox(height: 40),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: _isLoading ? null : () async {
+                  if (selectedGender == null || selectedGoal == null || selectedDiet == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Please select all lifestyle options ❤️")),
+                    );
+                    return;
+                  }
+
+                  setState(() => _isLoading = true);
                   final profile = UserProfile(
                     uid: widget.uid,
                     height: double.tryParse(heightController.text) ?? 0,
@@ -181,7 +155,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     gender: selectedGender ?? '',
                     goal: selectedGoal ?? '',
                     targetWeight: double.tryParse(targetWeightController.text) ?? 0,
-                    activityLevel: selectedActivity ?? '',
+                    activityLevel: selectedActivity ?? 'Sedentary',
                     dietType: selectedDiet ?? '',
                     hasDiabetes: diabetes,
                     hasHypertension: hypertension,
@@ -193,36 +167,57 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     await ProfileRepository().saveProfile(profile);
                     
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Health Profile Updated Successfully!")),
-                      );
-                      
-                      if (widget.existingProfile != null) {
-                        Navigator.pop(context, true);
-                      }
-                      // For first-time setup, AuthWrapper will now handle the navigation 
-                      // automatically via its StreamBuilder once the document is created.
+                      _showSuccessAndRedirect();
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Profile Save Failed: ${e.toString()}"),
-                          backgroundColor: Colors.red,
-                        ),
+                        SnackBar(content: Text("Save Failed: $e"), backgroundColor: Colors.red),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(widget.existingProfile != null ? "SAVE CHANGES" : "FINISH SETUP"),
+                child: _isLoading 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(widget.existingProfile != null ? "SAVE CHANGES" : "FINISH SETUP"),
               ),
+              const SizedBox(height: 40),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessAndRedirect() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            const SizedBox(height: 24),
+            const Text("Profile Ready!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            const Text("Your customized health path is now set up.", textAlign: TextAlign.center),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                if (widget.existingProfile != null) {
+                   Navigator.pop(context, true); // Go back if editing
+                }
+                // For new users, AuthWrapper will auto-switch to BottomNavScreen 
+                // because the Firestore stream just fired with data.
+              },
+              child: const Text("LET'S GO"),
+            ),
+          ],
         ),
       ),
     );

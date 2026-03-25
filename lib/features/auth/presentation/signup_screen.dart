@@ -15,6 +15,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final ageController = TextEditingController();
   final passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -23,6 +24,10 @@ class _SignupScreenState extends State<SignupScreen> {
     ageController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(email);
   }
 
   @override
@@ -116,22 +121,50 @@ class _SignupScreenState extends State<SignupScreen> {
                           
                           TextField(
                             controller: passwordController,
-                            obscureText: true,
-                            decoration: const InputDecoration(
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
                               hintText: "Create Password",
-                              prefixIcon: Icon(Icons.lock_outline),
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 40),
                           
                           ElevatedButton(
                             onPressed: _isLoading ? null : () async {
+                              final name = nameController.text.trim();
                               final email = emailController.text.trim();
                               final password = passwordController.text.trim();
 
-                              if (email.isEmpty || password.isEmpty) {
+                              if (name.isEmpty || email.isEmpty || password.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Email and password are required")),
+                                  const SnackBar(content: Text("Please fill all fields")),
+                                );
+                                return;
+                              }
+
+                              if (!_isValidEmail(email)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Please enter a valid email address"),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (password.length < 6) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Password must be at least 6 characters"),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
                                 );
                                 return;
                               }
@@ -148,10 +181,23 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   );
                                 }
-                              } catch (e) {
+                              } on Exception catch (e) {
+                                String message = "Registration failed. Please try again.";
+                                
+                                if (e.toString().contains('email-already-in-use')) {
+                                  message = "This email is already registered. Please sign in.";
+                                } else if (e.toString().contains('invalid-email')) {
+                                  message = "Invalid email format.";
+                                } else if (e.toString().contains('weak-password')) {
+                                  message = "The password provided is too weak.";
+                                }
+
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("Signup failed: ${e.toString()}")),
+                                    SnackBar(
+                                      content: Text(message),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
                                   );
                                 }
                               } finally {

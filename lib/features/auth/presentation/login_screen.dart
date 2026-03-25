@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen>
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -138,10 +139,17 @@ class _LoginScreenState extends State<LoginScreen>
                                 const SizedBox(height: 20),
                                 TextField(
                                   controller: passwordController,
-                                  obscureText: true,
-                                  decoration: const InputDecoration(
+                                  obscureText: _obscurePassword,
+                                  decoration: InputDecoration(
                                     hintText: "Password",
-                                    prefixIcon: Icon(Icons.lock_outline),
+                                    prefixIcon: const Icon(Icons.lock_outline),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 32),
@@ -153,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                                     if (email.isEmpty || password.isEmpty) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text("Email and password cannot be empty")),
+                                        const SnackBar(content: Text("Please fill all fields")),
                                       );
                                       return;
                                     }
@@ -163,10 +171,27 @@ class _LoginScreenState extends State<LoginScreen>
                                     try {
                                       await AuthService().loginWithEmail(email, password);
                                       // Navigation handled by AuthWrapper
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text("Login failed: ${e.toString()}")),
-                                      );
+                                    } on Exception catch (e) {
+                                      String errorMsg = e.toString();
+                                      String title = "Registration Error";
+                                      String message = "Login failed. Please check your network.";
+                                      bool showReset = false;
+                                      
+                                      if (errorMsg.contains('user-not-found')) {
+                                        title = "Account Not Found";
+                                        message = "No account found with this email. Would you like to sign up?";
+                                      } else if (errorMsg.contains('wrong-password')) {
+                                        title = "Incorrect Password";
+                                        message = "The password you entered is incorrect. Have you forgotten your password?";
+                                        showReset = true;
+                                      } else if (errorMsg.contains('invalid-email')) {
+                                        title = "Invalid Email";
+                                        message = "The email address you entered is not valid.";
+                                      }
+
+                                      if (mounted) {
+                                        _showAuthError(title, message, showReset: showReset, email: email);
+                                      }
                                     } finally {
                                       if (mounted) setState(() => _isLoading = false);
                                     }
@@ -174,6 +199,17 @@ class _LoginScreenState extends State<LoginScreen>
                                   child: _isLoading 
                                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                     : const Text("LOGIN"),
+                                ),
+                                const SizedBox(height: 12),
+
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () => _handleForgotPassword(),
+                                    child: Text(
+                                      "Forgot Password?",
+                                      style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 
@@ -216,5 +252,75 @@ class _LoginScreenState extends State<LoginScreen>
         ],
       ),
     );
+  }
+
+  void _showAuthError(String title, String message, {bool showReset = false, String? email}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CLOSE"),
+          ),
+          if (showReset && email != null)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleForgotPassword(prefilledEmail: email);
+              },
+              child: const Text("RESET PASSWORD"),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleForgotPassword({String? prefilledEmail}) async {
+    final email = prefilledEmail ?? emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your email to reset password")),
+      );
+      return;
+    }
+
+    try {
+      await AuthService().resetPassword(email);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+               Icon(Icons.check_circle, color: Colors.green),
+               SizedBox(width: 10),
+               Text("Email Sent!"),
+              ],
+            ),
+            content: const Text("A password reset link has been sent to your inbox. Please check your email to continue."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${e.toString()}"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 }

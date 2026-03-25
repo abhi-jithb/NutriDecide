@@ -66,11 +66,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _dailyGoal = HealthScoreService.getDailyGoal(history);
       _suggestions = _mealService.getSuggestions(profile, history);
       
-      _scoreAnimation = Tween<double>(begin: 0, end: _healthScore).animate(CurvedAnimation(
-        parent: _scoreController,
-        curve: Curves.easeOutCubic,
-      ));
-      _scoreController.forward(from: 0);
+      if (mounted) {
+        _scoreAnimation = Tween<double>(begin: 0, end: _healthScore).animate(CurvedAnimation(
+          parent: _scoreController,
+          curve: Curves.easeOutCubic,
+        ));
+        _scoreController.forward(from: 0);
+      }
     }
     
     setState(() {

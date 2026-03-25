@@ -242,7 +242,7 @@ class PrivacyCenterScreen extends StatelessWidget {
             _privacyItem(
               Icons.security_rounded,
               "Encryption",
-              "All communication between the app and our regional food intelligence servers is encrypted via SSL.",
+              "All communication between the app and servers is encrypted via SSL.",
             ),
             _privacyItem(
               Icons.analytics_outlined,

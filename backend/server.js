@@ -51,12 +51,23 @@ const cache = new Map();
 const CACHE_TTL = 300000; // 5 minutes
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+if (!MONGO_URI) {
+    logger.error('❌ MONGO_URI is missing in environment variables');
+    console.error('FATAL: MONGO_URI not found');
+}
+
+mongoose.connect(MONGO_URI)
     .then(() => {
         logger.info('✅ Connected to MongoDB');
+        console.log('MongoDB Connected');
         seedData();
     })
-    .catch(err => logger.error('❌ MongoDB Connection Error:', err));
+    .catch(err => {
+        logger.error('❌ MongoDB Connection Error:', err);
+        console.error('MongoDB connection failed:', err.message);
+    });
 
 // 🌿 MongoDB Schema for Regional Food
 const foodSchema = new mongoose.Schema({
@@ -103,14 +114,33 @@ async function seedData() {
     ];
 
     for (const food of initialFoods) {
-        const exists = await RegionalFood.findOne({ name: food.name });
-        if (!exists) {
-            await new RegionalFood(food).save();
+        try {
+            const exists = await RegionalFood.findOne({ name: food.name });
+            if (!exists) {
+                await new RegionalFood(food).save();
+            }
+        } catch (err) {
+            logger.error(`Seed error for ${food.name}: ${err.message}`);
         }
     }
 }
 
 // 6. Optimized Endpoints
+
+// Root Endpoint
+app.get('/', (req, res) => {
+    res.send('NutriDecide API is running');
+});
+
+// Health Check Endpoint
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        timestamp: new Date() 
+    });
+});
+
 app.get('/api/regional-food', async (req, res) => {
     try {
         const foods = await RegionalFood.find().select('-__v');
@@ -176,4 +206,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     logger.info(`🥗 NutriDecide backend running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

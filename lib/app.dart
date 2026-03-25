@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/presentation/login_screen.dart';
-
 import 'core/presentation/splash_screen.dart';
 
 class MyApp extends StatefulWidget {

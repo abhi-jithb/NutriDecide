@@ -2,6 +2,7 @@ import 'dart:convert';
 
 class UserProfile {
   final String? uid;
+  final int age;
   final double height;
   final double weight;
   final String gender;
@@ -13,9 +14,11 @@ class UserProfile {
   final bool hasHypertension;
   final bool hasPcos;
   final List<String> allergies;
+  final List<String> conditions;
 
   UserProfile({
     this.uid,
+    required this.age,
     required this.height,
     required this.weight,
     required this.gender,
@@ -27,11 +30,13 @@ class UserProfile {
     required this.hasHypertension,
     required this.hasPcos,
     this.allergies = const [],
+    this.conditions = const [],
   });
 
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
+      'age': age,
       'height': height,
       'weight': weight,
       'gender': gender,
@@ -43,12 +48,14 @@ class UserProfile {
       'hasHypertension': hasHypertension,
       'hasPcos': hasPcos,
       'allergies': allergies,
+      'conditions': conditions,
     };
   }
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       uid: map['uid'],
+      age: map['age'] ?? 25,
       height: (map['height'] ?? 0).toDouble(),
       weight: (map['weight'] ?? 0).toDouble(),
       gender: map['gender'] ?? '',
@@ -60,6 +67,7 @@ class UserProfile {
       hasHypertension: map['hasHypertension'] ?? false,
       hasPcos: map['hasPcos'] ?? false,
       allergies: List<String>.from(map['allergies'] ?? []),
+      conditions: List<String>.from(map['conditions'] ?? []),
     );
   }
 

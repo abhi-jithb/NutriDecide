@@ -128,7 +128,52 @@ class VerdictScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  
+                  if (verdict.confidence != ConfidenceLevel.high)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: verdict.confidence == ConfidenceLevel.medium 
+                          ? Colors.amber.withOpacity(0.1) 
+                          : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: verdict.confidence == ConfidenceLevel.medium 
+                            ? Colors.amber 
+                            : Colors.red,
+                          width: 1
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.report_problem_outlined, 
+                            color: verdict.confidence == ConfidenceLevel.medium 
+                              ? Colors.amber.shade900 
+                              : Colors.red.shade900,
+                            size: 18
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              verdict.confidence == ConfidenceLevel.medium
+                                ? "PARTIAL DATA: Nutrients estimated from generic brand database."
+                                : "UNCERTAIN DATA: Minimum facts detected. Use with caution.",
+                              style: TextStyle(
+                                fontSize: 11, 
+                                fontWeight: FontWeight.bold,
+                                color: verdict.confidence == ConfidenceLevel.medium 
+                                  ? Colors.amber.shade900 
+                                  : Colors.red.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   const Text(
                     "Analysis Details",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),

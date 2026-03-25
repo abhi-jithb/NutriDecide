@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'nutrition_data.dart';
 
 class ScanHistoryItem {
   final String barcode;

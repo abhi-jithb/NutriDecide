@@ -20,10 +20,14 @@ class FoodDatabaseService {
   late Box _foodBox;
   late Box _metadataBox;
 
+  // Optimized memory cache (LRU-lite)
+  final Map<String, NutritionData> _memoryCache = {};
+  final List<String> _cacheKeys = [];
+  static const int _maxCacheSize = 100;
+
   bool get isInitialized => _isInitialized;
 
   /// Initializes Hive and handles the one-time high-speed import of the 20k food dataset.
-  /// This is optimized to run on the main thread's startup without blocking the UI via background parsing.
   Future<void> initializeDatabase() async {
     if (_isInitialized) return;
 
@@ -33,12 +37,8 @@ class FoodDatabaseService {
       _metadataBox = await Hive.openBox(_metadataBoxName);
 
       final isImported = _metadataBox.get(_dbVersionKey, defaultValue: false);
-      
       if (!isImported || _foodBox.isEmpty) {
-        debugPrint('📦 FoodDatabaseService: Performing initial 20k-food import...');
         await _performInitialImport();
-      } else {
-        debugPrint('🚀 FoodDatabaseService: Loaded ${_foodBox.length} foods from Hive.');
       }
 
       _isInitialized = true;
@@ -47,11 +47,25 @@ class FoodDatabaseService {
     }
   }
 
+  Future<void> saveFoodData(String barcode, NutritionData data) async {
+    if (!_isInitialized) await initializeDatabase();
+    
+    _addToCache(barcode, data);
+    await _foodBox.put(barcode, data.toMap()); // Update disk
+  }
+
+  void _addToCache(String key, NutritionData value) {
+    if (_memoryCache.length >= _maxCacheSize) {
+      final oldestKey = _cacheKeys.removeAt(0);
+      _memoryCache.remove(oldestKey);
+    }
+    _memoryCache[key] = value;
+    _cacheKeys.add(key);
+  }
+
   Future<void> _performInitialImport() async {
     try {
       final String jsonString = await rootBundle.loadString('assets/data/foods_clean.json');
-      
-      // Compute parses the raw string in a background isolate to keep UI at 60fps
       final List<dynamic> rawData = await compute(_parseJsonIsolate, jsonString);
       
       final Map<String, dynamic> hiveMap = {};
@@ -62,25 +76,31 @@ class FoodDatabaseService {
         }
       }
 
-      // Bulk put for extreme performance (fastest Hive operation)
       await _foodBox.putAll(hiveMap);
       await _metadataBox.put(_dbVersionKey, true);
-      
-      debugPrint('✅ Initial import of 20,000 foods completed into Hive.');
     } catch (e) {
       debugPrint('❌ FoodDatabaseService Import Error: $e');
     }
   }
 
-  /// O(1) constant-time lookup via Hive binary index. Extremely RAM efficient.
+  /// Hybrid lookup: Memory -> Hive -> null
   NutritionData? getFoodByBarcode(String barcode) {
+    if (_memoryCache.containsKey(barcode)) {
+      _cacheKeys.remove(barcode);
+      _cacheKeys.add(barcode);
+      return _memoryCache[barcode];
+    }
+    
     if (!_isInitialized || _foodBox.isEmpty) return null;
     
     final rawItem = _foodBox.get(barcode);
     if (rawItem == null) return null;
 
     final Map<String, dynamic> itemMap = Map<String, dynamic>.from(rawItem);
-    return _parseLocalItem(itemMap);
+    final data = NutritionData.fromLocalMap(itemMap);
+    
+    _addToCache(barcode, data);
+    return data;
   }
 
   /// Keyword search using Hive iteration (limited for performance).

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models/user_profile.dart';
 import 'data/profile_repository.dart';
-import '../scan/data/scan_repository.dart';
-import '../scan/services/risk_analysis_service.dart';
-import '../home/widgets/health_trend_chart.dart';
 import '../auth/presentation/profile_setup_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,10 +12,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   UserProfile? _profile;
-  List<HealthTrendData> _trends = [];
   bool _isLoading = true;
-  double _currScore = 100.0;
-  int _todayScans = 0;
 
   @override
   void initState() {
@@ -28,21 +22,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadAllData() async {
     final profile = await ProfileRepository().getProfile();
-    final history = await ScanRepository().getHistory();
-    final trends = RiskAnalysisService().calculateWeeklyTrends(history);
-    
-    final today = DateTime.now();
-    final todayS = history.where((s) => 
-      s.timestamp.year == today.year && 
-      s.timestamp.month == today.month && 
-      s.timestamp.day == today.day
-    ).length;
-
     setState(() {
       _profile = profile;
-      _trends = trends;
-      if (trends.isNotEmpty) _currScore = trends.last.score;
-      _todayScans = todayS;
       _isLoading = false;
     });
   }
@@ -50,225 +31,182 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.secondary,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 50),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.white24,
-                          shape: BoxShape.circle,
-                        ),
-                        child: CircleAvatar(
-                          radius: 45,
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.person, size: 45, color: Theme.of(context).colorScheme.primary),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "Health DNA",
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Quick Stats Row
-                  Row(
-                    children: [
-                      _buildQuickStat("Health Score", _currScore.toInt().toString(), Icons.favorite, Colors.red),
-                      const SizedBox(width: 16),
-                      _buildQuickStat("Scans Today", _todayScans.toString(), Icons.analytics, Colors.blue),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  const Text(
-                    "Weekly Suitability Trend",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  HealthTrendChart(trends: _trends),
-                  const SizedBox(height: 32),
-
-                  const Text(
-                    "Biometrics & Goals",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_profile == null)
-                    const Center(child: Text("Please complete your profile setup."))
-                  else ...[
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.5,
-                      children: [
-                        _buildGridCard("Height", "${_profile!.height} cm", Icons.straighten, Colors.teal),
-                        _buildGridCard("Weight", "${_profile!.weight} kg", Icons.scale, Colors.orange),
-                        _buildGridCard("Goal", _profile!.goal, Icons.track_changes, Colors.purple),
-                        _buildGridCard("Diet", _profile!.dietType, Icons.restaurant, Colors.amber),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFullWidthCard("Medical Conditions", _getConditionsString(), Icons.medical_information, Colors.red),
-                    _buildFullWidthCard("Allergies", _profile!.allergies.isEmpty ? "None" : _profile!.allergies.join(", "), Icons.warning_amber, Colors.deepOrange),
-                  ],
-                  const SizedBox(height: 40),
-                  
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      if (_profile != null) {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileSetupScreen(
-                              uid: ProfileRepository().currentUid!,
-                              existingProfile: _profile,
-                            ),
-                          ),
-                        );
-                        if (result == true) {
-                          _loadAllData();
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.edit_note),
-                    label: const Text("MODIFY HEALTH PROFILE"),
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text("My Health Profile"),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
-    );
-  }
-
-  Widget _buildQuickStat(String title, String val, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.1)),
-        ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            _buildProfileCard(),
+            const SizedBox(height: 32),
+            _buildSectionHeader("Biometrics"),
+            const SizedBox(height: 16),
+            _buildBiometricGrid(),
+            const SizedBox(height: 32),
+            _buildSectionHeader("Conditions & Allergies"),
+            const SizedBox(height: 16),
+            _buildMedicalCard(),
+            const SizedBox(height: 48),
+            ElevatedButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileSetupScreen(
+                      uid: ProfileRepository().currentUid!,
+                      existingProfile: _profile,
+                    ),
+                  ),
+                );
+                if (result == true) _loadAllData();
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text("UPDATE HEALTH PROFILE"),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildGridCard(String title, String val, IconData icon, Color color) {
+  Widget _buildProfileCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Icon(Icons.person, color: Colors.white, size: 40),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _profile?.gender ?? "User Profile",
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            "${_profile?.age ?? 25} Years Old",
+            style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Row(
+      children: [
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+      ],
+    );
+  }
+
+  Widget _buildBiometricGrid() {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.4,
+      children: [
+        _buildGridStat("Height", "${_profile?.height} cm", Icons.height, Colors.blue),
+        _buildGridStat("Weight", "${_profile?.weight} kg", Icons.monitor_weight_outlined, Colors.orange),
+        _buildGridStat("Goal", _profile?.goal ?? "Maintain", Icons.track_changes, Colors.purple),
+        _buildGridStat("Diet", _profile?.dietType ?? "No Restriction", Icons.restaurant, Colors.green),
+      ],
+    );
+  }
+
+  Widget _buildGridStat(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.withOpacity(0.05)),
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24),
+          Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
-          Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+          Text(title, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
         ],
       ),
     );
   }
 
-  Widget _buildFullWidthCard(String title, String val, IconData icon, Color color) {
+  Widget _buildMedicalCard() {
+    final conditions = _profile?.conditions ?? [];
+    final allergies = _profile?.allergies ?? [];
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.withOpacity(0.05)),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+          const Text("Known Conditions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 8),
+          if (conditions.isEmpty)
+            const Text("None reported", style: TextStyle(color: Colors.grey))
+          else
+            Wrap(
+              spacing: 8,
+              children: conditions.map((c) => _buildChip(c, Colors.red)).toList(),
             ),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
+          const SizedBox(height: 24),
+          const Text("Active Allergies", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 8),
+          if (allergies.isEmpty)
+            const Text("None reported", style: TextStyle(color: Colors.grey))
+          else
+            Wrap(
+              spacing: 8,
+              children: allergies.map((a) => _buildChip(a, Colors.orange)).toList(),
             ),
-          ),
         ],
       ),
     );
   }
 
-  String _getConditionsString() {
-    if (_profile == null) return "None";
-    List<String> conditions = [];
-    if (_profile!.hasDiabetes) conditions.add("Diabetes");
-    if (_profile!.hasHypertension) conditions.add("Hypertension");
-    if (_profile!.hasPcos) conditions.add("PCOS");
-    return conditions.isEmpty ? "None" : conditions.join(", ");
+  Widget _buildChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800),
+      ),
+    );
   }
 }

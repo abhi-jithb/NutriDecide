@@ -19,9 +19,11 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
+  final ageController = TextEditingController();
   final heightController = TextEditingController();
   final weightController = TextEditingController();
   final targetWeightController = TextEditingController();
+  final allergiesController = TextEditingController();
 
   String? selectedGender;
   String? selectedGoal;
@@ -33,14 +35,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool pcos = false;
   bool _isLoading = false;
 
-  final List<String> allergies = [];
-  final List<String> intolerances = [];
+  final List<String> selectedConditions = [];
 
   @override
   void initState() {
     super.initState();
     if (widget.existingProfile != null) {
       final p = widget.existingProfile!;
+      ageController.text = p.age.toString();
       heightController.text = p.height.toString();
       weightController.text = p.weight.toString();
       targetWeightController.text = p.targetWeight.toString();
@@ -51,11 +53,27 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       diabetes = p.hasDiabetes;
       hypertension = p.hasHypertension;
       pcos = p.hasPcos;
+      allergiesController.text = p.allergies.join(', ');
     }
+  }
+
+  String _getWeightHint() {
+    final h = double.tryParse(heightController.text) ?? 0;
+    final w = double.tryParse(weightController.text) ?? 0;
+    if (h > 0 && w > 0) {
+      final bmi = w / ((h / 100) * (h / 100));
+      if (bmi < 18.5) return "Low range weight";
+      if (bmi < 25) return "Solid healthy weight";
+      if (bmi < 30) return "Slightly above range weight";
+      return "Above range weight";
+    }
+    return "";
   }
 
   @override
   Widget build(BuildContext context) {
+    final hint = _getWeightHint();
+
     return Scaffold(
       appBar: AppBar(title: const Text("Health Profile")),
       body: SafeArea(
@@ -64,7 +82,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -72,44 +89,70 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.straighten, color: Colors.teal),
+                          const Icon(Icons.person_outline, color: Colors.teal),
                           const SizedBox(width: 8),
-                          const Text("Measurements", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                          const Text("Core Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                         ],
                       ),
                       const SizedBox(height: 24),
                       TextField(
+                        controller: ageController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: "Age", hintText: "e.g. 25"),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
                         controller: heightController,
                         keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
                         decoration: const InputDecoration(labelText: "Height (cm)", hintText: "e.g. 175"),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: weightController,
                         keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
                         decoration: const InputDecoration(labelText: "Current Weight (kg)", hintText: "e.g. 70"),
                       ),
+                      if (hint.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Text(
+                            "💡 $hint",
+                            style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              const Text("Biological Gender", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text("Medical Conditions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
-                children: ["Male", "Female", "Other"].map((g) {
-                  return ChoiceChip(
-                    label: Text(g),
-                    selected: selectedGender == g,
-                    onSelected: (val) => setState(() => selectedGender = val ? g : null),
-                  );
-                }).toList(),
+                children: [
+                  FilterChip(label: const Text("Diabetes"), selected: diabetes, onSelected: (v) => setState(() => diabetes = v)),
+                  FilterChip(label: const Text("Hypertension"), selected: hypertension, onSelected: (v) => setState(() => hypertension = v)),
+                  FilterChip(label: const Text("PCOS"), selected: pcos, onSelected: (v) => setState(() => pcos = v)),
+                ],
               ),
 
               const SizedBox(height: 32),
-              const Text("Primary Goal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text("Food Allergies", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: allergiesController,
+                decoration: const InputDecoration(
+                  labelText: "Enter allergies",
+                  hintText: "e.g. Peanuts, Milk, Soy (comma separated)",
+                  prefixIcon: Icon(Icons.warning_amber_rounded),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+              const Text("Primay Goal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -123,12 +166,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
 
               const SizedBox(height: 32),
-              const Text("Diet Type", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text("Diet Preference", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: ["No Restriction", "Vegan", "Vegetarian", "Keto", "Low-carb"].map((d) {
+                children: ["No Restriction", "Vegan", "Vegetarian", "Keto"].map((d) {
                   return ChoiceChip(
                     label: Text(d),
                     selected: selectedDiet == d,
@@ -137,42 +180,46 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 }).toList(),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
               ElevatedButton(
                 onPressed: _isLoading ? null : () async {
-                  if (selectedGender == null || selectedGoal == null || selectedDiet == null) {
+                  if (ageController.text.isEmpty || heightController.text.isEmpty || weightController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Please select all lifestyle options ❤️")),
+                      const SnackBar(content: Text("Please fill in your core measurements.")),
                     );
                     return;
                   }
 
                   setState(() => _isLoading = true);
+                  final List<String> cond = [];
+                  if (diabetes) cond.add("Diabetes");
+                  if (hypertension) cond.add("Hypertension");
+                  if (pcos) cond.add("PCOS");
+
                   final profile = UserProfile(
                     uid: widget.uid,
+                    age: int.tryParse(ageController.text) ?? 25,
                     height: double.tryParse(heightController.text) ?? 0,
                     weight: double.tryParse(weightController.text) ?? 0,
-                    gender: selectedGender ?? '',
-                    goal: selectedGoal ?? '',
+                    gender: selectedGender ?? 'Prefer not to say',
+                    goal: selectedGoal ?? 'Maintain',
                     targetWeight: double.tryParse(targetWeightController.text) ?? 0,
                     activityLevel: selectedActivity ?? 'Sedentary',
-                    dietType: selectedDiet ?? '',
+                    dietType: selectedDiet ?? 'No Restriction',
                     hasDiabetes: diabetes,
                     hasHypertension: hypertension,
                     hasPcos: pcos,
-                    allergies: widget.existingProfile?.allergies ?? [], 
+                    conditions: cond,
+                    allergies: allergiesController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   );
 
                   try {
                     await ProfileRepository().saveProfile(profile);
-                    
-                    if (mounted) {
-                      _showSuccessAndRedirect();
-                    }
+                    if (mounted) _showSuccessAndRedirect();
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Save Failed: $e"), backgroundColor: Colors.red),
+                        SnackBar(content: Text("Save failed: $e"), backgroundColor: Colors.red),
                       );
                     }
                   } finally {
@@ -204,16 +251,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             const SizedBox(height: 24),
             const Text("Profile Ready!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
-            const Text("Your customized health path is now set up.", textAlign: TextAlign.center),
+            const Text("Your health profile is now active.", textAlign: TextAlign.center),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context); // Close dialog
-                if (widget.existingProfile != null) {
-                   Navigator.pop(context, true); // Go back if editing
-                }
-                // For new users, AuthWrapper will auto-switch to BottomNavScreen 
-                // because the Firestore stream just fired with data.
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BottomNavScreen()),
+                  (route) => false,
+                );
               },
               child: const Text("LET'S GO"),
             ),

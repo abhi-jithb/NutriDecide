@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import '../../navigation/bottom_nav_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -134,7 +136,6 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-
                                 TextField(
                                   controller: passwordController,
                                   obscureText: true,
@@ -146,18 +147,33 @@ class _LoginScreenState extends State<LoginScreen>
                                 const SizedBox(height: 32),
 
                                 ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      PageRouteBuilder(
-                                        pageBuilder: (_, __, ___) => const BottomNavScreen(),
-                                        transitionsBuilder: (_, animation, __, child) {
-                                          return FadeTransition(opacity: animation, child: child);
-                                        },
-                                      ),
-                                    );
+                                  onPressed: _isLoading ? null : () async {
+                                    final email = emailController.text.trim();
+                                    final password = passwordController.text.trim();
+
+                                    if (email.isEmpty || password.isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Email and password cannot be empty")),
+                                      );
+                                      return;
+                                    }
+
+                                    setState(() => _isLoading = true);
+
+                                    try {
+                                      await AuthService().loginWithEmail(email, password);
+                                      // Navigation handled by AuthWrapper
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text("Login failed: ${e.toString()}")),
+                                      );
+                                    } finally {
+                                      if (mounted) setState(() => _isLoading = false);
+                                    }
                                   },
-                                  child: const Text("LOGIN"),
+                                  child: _isLoading 
+                                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Text("LOGIN"),
                                 ),
                                 const SizedBox(height: 16),
                                 

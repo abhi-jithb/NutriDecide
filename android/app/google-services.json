@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "506544361665",
+    "project_id": "nutridecide",
+    "storage_bucket": "nutridecide.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:506544361665:android:22efc383938ea3bf238440",
+        "android_client_info": {
+          "package_name": "com.example.nutri_decide"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "506544361665-acm03mm1rsq17gscnmgqpmrk1lap5fd8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.nutri_decide",
+            "certificate_hash": "88cdd4322a5bff9fc4ceacd5413d141c36d0caa7"
+          }
+        },
+        {
+          "client_id": "506544361665-5v2vu4clq4g69lg9pih3dvcs28evr8r3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpc-4Hd_cjE97XyU8qPFWtV6IUBTOzQAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "506544361665-5v2vu4clq4g69lg9pih3dvcs28evr8r3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

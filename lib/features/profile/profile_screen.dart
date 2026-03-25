@@ -163,7 +163,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ProfileSetupScreen(existingProfile: _profile),
+                            builder: (context) => ProfileSetupScreen(
+                              uid: ProfileRepository().currentUid!,
+                              existingProfile: _profile,
+                            ),
                           ),
                         );
                         if (result == true) {

@@ -15,11 +15,11 @@ class ProfileRepository {
 
   String? get currentUid => _auth.currentUser?.uid;
 
-  CollectionReference get _profiles => _firestore.collection('profiles');
+  CollectionReference get _profiles => _firestore.collection('users');
 
   /// Fetches the user profile from Cloud Firestore for the currently logged-in user.
   /// If it doesn't exist, returns null.
-  Future<UserProfile?> fetchProfile() async {
+  Future<UserProfile?> getProfile() async {
     final uid = currentUid;
     if (uid == null) return null;
 

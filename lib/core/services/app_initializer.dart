@@ -15,6 +15,9 @@ class AppInitializer {
   UserProfile? _currentUserProfile;
   UserProfile? get currentUserProfile => _currentUserProfile;
 
+  bool _isFirebaseReady = false;
+  bool get isFirebaseReady => _isFirebaseReady;
+
   /// Parallel initialization of DotEnv, Firebase, Hive, and User Profiles.
   /// Target performance: < 2 seconds startup time.
   Future<void> initialize() async {
@@ -24,7 +27,7 @@ class AppInitializer {
       // Step A: Phase 1 Parallel Boot (Infrastructure)
       await Future.wait([
         dotenv.load(fileName: ".env"),
-        Firebase.initializeApp(),
+        _safeInitFirebase(),
         Hive.initFlutter(),
       ]);
 
@@ -33,7 +36,7 @@ class AppInitializer {
 
       // Step C: User Awareness Phase (Profile Loading from Firestore)
       // This is fast and non-blocking if already logged in via Firebase Auth persistence.
-      _currentUserProfile = await ProfileRepository().fetchProfile();
+      _currentUserProfile = await ProfileRepository().getProfile();
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       debugPrint('🚀 AppInitializer: Full system boot completed in ${duration}ms');
@@ -45,6 +48,17 @@ class AppInitializer {
 
   /// Refreshes the cached profile (useful after signup/profile update).
   Future<void> refreshProfile() async {
-    _currentUserProfile = await ProfileRepository().fetchProfile();
+    _currentUserProfile = await ProfileRepository().getProfile();
+  }
+
+  Future<void> _safeInitFirebase() async {
+    try {
+      await Firebase.initializeApp();
+      _isFirebaseReady = true;
+    } catch (e) {
+      debugPrint('❌ Firebase Initialization Failed: $e');
+      // On Android, this usually means google-services.json is missing or invalid.
+      _isFirebaseReady = false;
+    }
   }
 }

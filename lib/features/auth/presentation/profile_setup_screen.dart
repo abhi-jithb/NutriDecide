@@ -5,7 +5,13 @@ import '../../profile/data/profile_repository.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final UserProfile? existingProfile;
-  const ProfileSetupScreen({super.key, this.existingProfile});
+  final String uid;
+
+  const ProfileSetupScreen({
+    super.key, 
+    required this.uid,
+    this.existingProfile,
+  });
 
   @override
   _ProfileSetupScreenState createState() => _ProfileSetupScreenState();
@@ -169,6 +175,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ElevatedButton(
                 onPressed: () async {
                   final profile = UserProfile(
+                    uid: widget.uid,
                     height: double.tryParse(heightController.text) ?? 0,
                     weight: double.tryParse(weightController.text) ?? 0,
                     gender: selectedGender ?? '',
@@ -182,19 +189,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     allergies: widget.existingProfile?.allergies ?? [], 
                   );
 
-                  await ProfileRepository().saveProfile(profile);
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Health Profile Updated Successfully!")),
-                    );
-                    if (widget.existingProfile != null) {
-                      Navigator.pop(context, true);
-                    } else {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const BottomNavScreen(),
+                  try {
+                    await ProfileRepository().saveProfile(profile);
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Health Profile Updated Successfully!")),
+                      );
+                      
+                      if (widget.existingProfile != null) {
+                        Navigator.pop(context, true);
+                      }
+                      // For first-time setup, AuthWrapper will now handle the navigation 
+                      // automatically via its StreamBuilder once the document is created.
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Profile Save Failed: ${e.toString()}"),
+                          backgroundColor: Colors.red,
                         ),
                       );
                     }

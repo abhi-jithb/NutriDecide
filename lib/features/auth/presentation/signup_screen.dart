@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'profile_setup_screen.dart';
+import 'package:nutri_decide/features/auth/services/auth_service.dart';
+import 'package:nutri_decide/features/auth/presentation/profile_setup_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,6 +14,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final emailController = TextEditingController();
   final ageController = TextEditingController();
   final passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,6 +34,8 @@ class _SignupScreenState extends State<SignupScreen> {
       appBar: AppBar(
         title: const Text("Create Account", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Stack(
         children: [
@@ -121,13 +125,42 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 40),
                           
                           ElevatedButton(
-                            onPressed: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => ProfileSetupScreen()),
-                              );
+                            onPressed: _isLoading ? null : () async {
+                              final email = emailController.text.trim();
+                              final password = passwordController.text.trim();
+
+                              if (email.isEmpty || password.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Email and password are required")),
+                                );
+                                return;
+                              }
+
+                              setState(() => _isLoading = true);
+
+                              try {
+                                final result = await AuthService().registerWithEmail(email, password);
+                                if (result != null && mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProfileSetupScreen(uid: result.user!.uid),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("Signup failed: ${e.toString()}")),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
                             },
-                            child: const Text("CONTINUE"),
+                            child: _isLoading 
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text("CONTINUE"),
                           ),
                           const SizedBox(height: 16),
                           

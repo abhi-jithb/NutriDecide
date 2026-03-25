@@ -1,14 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/auth_service.dart';
-import '../../profile/data/profile_repository.dart';
-import '../../profile/models/user_profile.dart';
-import 'login_screen.dart';
-import 'profile_setup_screen.dart';
-import '../../navigation/bottom_nav_screen.dart';
-import '../../legal/presentation/medical_disclaimer_screen.dart';
-import '../../../core/services/app_initializer.dart';
+import 'package:nutri_decide/features/auth/services/auth_service.dart';
+import 'package:nutri_decide/features/profile/data/profile_repository.dart';
+import 'package:nutri_decide/features/profile/models/user_profile.dart';
+import 'package:nutri_decide/features/auth/presentation/login_screen.dart';
+import 'package:nutri_decide/features/auth/presentation/profile_setup_screen.dart';
+import 'package:nutri_decide/features/navigation/bottom_nav_screen.dart';
+import 'package:nutri_decide/features/legal/presentation/medical_disclaimer_screen.dart';
+import 'package:nutri_decide/core/services/app_initializer.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -63,8 +63,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
           return const LoginScreen();
         }
 
-        return FutureBuilder<UserProfile?>(
-          future: ProfileRepository().getProfile(),
+        return StreamBuilder<UserProfile?>(
+          stream: ProfileRepository().profileStream(),
           builder: (context, profileSnapshot) {
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -72,7 +72,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
             final profile = profileSnapshot.data;
             if (profile == null) {
-              return const ProfileSetupScreen();
+              return ProfileSetupScreen(uid: user.uid);
             }
 
             // Legal Guard: Ensure medical disclaimer is accepted once per installation

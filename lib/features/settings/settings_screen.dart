@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:nutri_decide/app.dart';
+import 'package:nutri_decide/features/auth/services/auth_service.dart';
+import 'package:nutri_decide/features/auth/presentation/login_screen.dart';
+import 'package:nutri_decide/features/auth/presentation/profile_setup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -9,76 +13,105 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool _healthAlerts = true;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _healthAlerts = prefs.getBool('health_alerts') ?? true;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _toggleHealthAlerts(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('health_alerts', value);
+    setState(() => _healthAlerts = value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Preferences & Settings"),
+        title: const Text("Preferences"),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         children: [
-          _buildSubscriptionBanner(theme),
-          const SizedBox(height: 24),
-
           _sectionHeader("App Customization"),
           _settingsSwitch(
             title: "Dark Mode",
             subtitle: "Switch between light and dark themes",
             icon: Icons.dark_mode_outlined,
-            value: theme.brightness == Brightness.dark,
+            value: isDark,
             onChanged: (val) => MyApp.of(context)?.toggleTheme(val),
           ),
           _settingsSwitch(
             title: "Health Alerts",
-            subtitle: "Real-time warnings on risky scans",
+            subtitle: "Warning notifications on risky food scans",
             icon: Icons.notifications_active_outlined,
-            value: true,
-            onChanged: (val) {},
+            value: _healthAlerts,
+            onChanged: _toggleHealthAlerts,
           ),
           
-          const SizedBox(height: 24),
-          _sectionHeader("Account & Security"),
+          const SizedBox(height: 32),
+          _sectionHeader("Account"),
           _settingsActionTile(
             title: "Manage Health Profile",
             subtitle: "Update allergies, conditions & metrics",
             icon: Icons.health_and_safety_outlined,
-            onTap: () {},
-          ),
-          _settingsActionTile(
-            title: "Security Settings",
-            subtitle: "Change password & biometrics",
-            icon: Icons.lock_person_outlined,
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => ProfileSetupScreen(uid: AuthService().currentUser!.uid))
+              );
+            },
           ),
           _settingsActionTile(
             title: "Sign Out",
             icon: Icons.logout_rounded,
             isDestructive: true,
-            onTap: () {},
+            onTap: () async {
+              await AuthService().logout();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false
+                );
+              }
+            },
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _sectionHeader("Data Transparency"),
           _settingsActionTile(
             title: "Privacy Center",
             subtitle: "Control how your health data is used",
             icon: Icons.privacy_tip_outlined,
-            onTap: () {},
-          ),
-          _settingsActionTile(
-            title: "Export Health Data",
-            subtitle: "Download your scan history PDF",
-            icon: Icons.file_download_outlined,
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PrivacyCenterScreen())
+              );
+            },
           ),
           
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           const Center(
             child: Text(
-              "NutriDecide v1.2.0 • Build 246",
+              "NutriDecide v1.0.0 • Production Ready",
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),
@@ -99,57 +132,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Colors.grey.withOpacity(0.8),
           letterSpacing: 1.2,
         ),
-      ),
-    );
-  }
-
-  Widget _buildSubscriptionBanner(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withOpacity(0.7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "GO PREMIUM",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              Icon(Icons.star_rounded, color: Colors.amber, size: 32),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            "Unlock detailed additive analysis and personalized meal planners.",
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: theme.colorScheme.primary,
-              minimumSize: const Size(120, 45),
-            ),
-            child: const Text("UPGRADE NOW"),
-          ),
-        ],
       ),
     );
   }
@@ -220,6 +202,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
         activeColor: color,
+      ),
+    );
+  }
+}
+
+class PrivacyCenterScreen extends StatelessWidget {
+  const PrivacyCenterScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Privacy Center")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Your Health Data, Your Control",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "NutriDecide is built with a 'Privacy First' philosophy. Here is how we handle your biometrics and scan history:",
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            _privacyItem(
+              Icons.storage_rounded,
+              "Local Persistence",
+              "Most scan data is stored locally on your device to ensure maximum speed and offline access.",
+            ),
+            _privacyItem(
+              Icons.cloud_done_rounded,
+              "Cloud Sync",
+              "Your core health profile is synced to Firebase Firestore so you can access it across devices securely.",
+            ),
+            _privacyItem(
+              Icons.security_rounded,
+              "Encryption",
+              "All communication between the app and our regional food intelligence servers is encrypted via SSL.",
+            ),
+            _privacyItem(
+              Icons.analytics_outlined,
+              "No 3rd Party Selling",
+              "We never share or sell your individual health metrics or food preferences with advertisers.",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _privacyItem(IconData icon, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.green, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 4),
+                Text(description, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

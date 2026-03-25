@@ -224,7 +224,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
     try {
       final product = await _nutritionService.fetchProductData(code);
-      final profile = await _profileRepository.fetchProfile();
+      final profile = await _profileRepository.getProfile();
 
       if (mounted) Navigator.pop(context); // Hide loader
 

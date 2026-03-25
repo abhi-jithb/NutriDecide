@@ -1,44 +1,49 @@
 import 'package:flutter/material.dart';
 
 class MedicalDisclaimerScreen extends StatelessWidget {
-  const MedicalDisclaimerScreen({super.key});
+  final VoidCallback onAccept;
+  const MedicalDisclaimerScreen({super.key, required this.onAccept});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Medical Disclaimer")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Icon(Icons.medical_services_outlined, size: 80, color: Colors.red),
-            const SizedBox(height: 24),
-            const Text(
-              "NutriDecide is NOT a Medical Diagnostic Tool",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              """
-The information provided by NutriDecide, including food analysis, suitability verdicts, and health-specific suggestions, is for informational and educational purposes only.
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
+          child: Column(
+            children: [
+              const Icon(Icons.shield_outlined, size: 80, color: Colors.blue),
+              const SizedBox(height: 24),
+              const Text(
+                "Important Medical Notice",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                """
+NutriDecide provides personalized food intelligence but is NOT a substitute for professional medical advice.
 
-1. Not Medical Advice: This application does not provide medical diagnosis, treatment, or professional advice. 
-2. Consult Your Doctor: Always consult with a qualified healthcare professional before making dietary changes, especially if you have chronic conditions like Diabetes, Hypertension, or PCOS.
-3. Accuracy: While we strive for accuracy, nutritional data is sourced from global databases and may vary from actual products.
-4. User Responsibility: The user assumes all risks for any decisions made based on the app's analysis.
+1. GUIDANCE ONLY: Verdicts (GOOD/AVOID) are based on nutritional datasets and may not account for individual medical nuances.
+2. CONSULTATION: Always speak with a doctor before changing your diet, especially if you have chronic health conditions.
+3. DATA LIMITATIONS: While optimized for Kerala regional data, nutrition estimates are for information only.
+4. NO WARRANTY: We do not guarantee 100% accuracy of ingredients or nutritional values.
 
-By using this app, you acknowledge that NutriDecide is a guidance tool and not a substitute for professional medical care.
-              """,
-              style: TextStyle(fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-              child: const Text("I Understand and Accept"),
-            ),
-          ],
+By continuing, you agree that you understand NutriDecide is a nutritional guidance companion and not a medical tool.
+                """,
+                style: TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
+              ),
+              const SizedBox(height: 48),
+              ElevatedButton(
+                onPressed: onAccept,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 60),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                child: const Text("I ACCEPT AND UNDERSTAND", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+              ),
+            ],
+          ),
         ),
       ),
     );

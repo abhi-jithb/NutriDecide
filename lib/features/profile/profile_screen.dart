@@ -35,12 +35,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("My Health Profile"),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -69,10 +66,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
                 if (result == true) _loadAllData();
               },
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
               child: const Text("UPDATE HEALTH PROFILE"),
             ),
             const SizedBox(height: 40),
@@ -89,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
         borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.1)),
       ),
       child: Column(
         children: [
@@ -100,11 +94,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           Text(
             _profile?.gender ?? "User Profile",
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontSize: 20, 
+              fontWeight: FontWeight.w900,
+              color: Theme.of(context).colorScheme.onBackground,
+            ),
           ),
           Text(
             "${_profile?.age ?? 25} Years Old",
-            style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6), 
+              fontWeight: FontWeight.bold
+            ),
           ),
         ],
       ),
@@ -114,7 +115,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionHeader(String title) {
     return Row(
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+        Text(
+          title, 
+          style: TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.w900, 
+            letterSpacing: -0.5,
+            color: Theme.of(context).colorScheme.onBackground,
+          )
+        ),
       ],
     );
   }
@@ -137,20 +146,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildGridStat(String title, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-          Text(title, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+          Text(
+            value, 
+            style: TextStyle(
+              fontWeight: FontWeight.w900, 
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            )
+          ),
+          Text(
+            title, 
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), 
+              fontSize: 11
+            )
+          ),
         ],
       ),
     );
@@ -159,36 +182,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMedicalCard() {
     final conditions = _profile?.conditions ?? [];
     final allergies = _profile?.allergies ?? [];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Known Conditions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            "Known Conditions", 
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface,
+            )
+          ),
           const SizedBox(height: 8),
           if (conditions.isEmpty)
-            const Text("None reported", style: TextStyle(color: Colors.grey))
+            Text(
+              "None reported", 
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))
+            )
           else
             Wrap(
               spacing: 8,
-              children: conditions.map((c) => _buildChip(c, Colors.red)).toList(),
+              runSpacing: 8,
+              children: conditions.map((c) => _buildChip(c, Colors.red.shade400)).toList(),
             ),
           const SizedBox(height: 24),
-          const Text("Active Allergies", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            "Active Allergies", 
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface,
+            )
+          ),
           const SizedBox(height: 8),
           if (allergies.isEmpty)
-            const Text("None reported", style: TextStyle(color: Colors.grey))
+            Text(
+              "None reported", 
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))
+            )
           else
             Wrap(
               spacing: 8,
-              children: allergies.map((a) => _buildChip(a, Colors.orange)).toList(),
+              runSpacing: 8,
+              children: allergies.map((a) => _buildChip(a, Colors.orange.shade400)).toList(),
             ),
         ],
       ),

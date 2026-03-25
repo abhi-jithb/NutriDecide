@@ -28,6 +28,7 @@ class VerdictScreen extends StatelessWidget {
           children: [
             // Product Info Card
             Card(
+              color: Theme.of(context).cardColor,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -45,16 +46,16 @@ class VerdictScreen extends StatelessWidget {
                             return Container(
                               width: 80,
                               height: 80,
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.surfaceVariant,
                               child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                             );
                           },
                           errorBuilder: (context, error, stackTrace) => 
-                            const Icon(Icons.broken_image_outlined, size: 80, color: Colors.grey),
+                            Icon(Icons.broken_image_outlined, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
                         ),
                       )
                     else
-                      const Icon(Icons.fastfood, size: 80, color: Colors.grey),
+                      Icon(Icons.fastfood, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -62,12 +63,17 @@ class VerdictScreen extends StatelessWidget {
                         children: [
                           Text(
                             product.productName,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                           ),
                           if (product.brand != null)
-                            Text(product.brand!,
-                                style: const TextStyle(color: Colors.grey)),
+                            Text(
+                              product.brand!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                            ),
                         ],
                       ),
                     ),
@@ -151,8 +157,8 @@ class VerdictScreen extends StatelessWidget {
                           Icon(
                             Icons.report_problem_outlined, 
                             color: verdict.confidence == ConfidenceLevel.medium 
-                              ? Colors.amber.shade900 
-                              : Colors.red.shade900,
+                              ? Colors.amber 
+                              : Colors.red,
                             size: 18
                           ),
                           const SizedBox(width: 10),
@@ -165,8 +171,8 @@ class VerdictScreen extends StatelessWidget {
                                 fontSize: 11, 
                                 fontWeight: FontWeight.bold,
                                 color: verdict.confidence == ConfidenceLevel.medium 
-                                  ? Colors.amber.shade900 
-                                  : Colors.red.shade900,
+                                  ? Colors.amber 
+                                  : Colors.red,
                               ),
                             ),
                           ),
@@ -174,9 +180,13 @@ class VerdictScreen extends StatelessWidget {
                       ),
                     ),
 
-                  const Text(
+                  Text(
                     "Analysis Details",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onBackground,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   ...verdict.reasons.map((reason) => Padding(
@@ -186,7 +196,10 @@ class VerdictScreen extends StatelessWidget {
                           children: [
                             Icon(Icons.circle, size: 8, color: color),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(reason)),
+                            Expanded(child: Text(
+                              reason,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                            )),
                           ],
                         ),
                       )),
@@ -197,29 +210,39 @@ class VerdictScreen extends StatelessWidget {
             const SizedBox(height: 24),
             
             // Ingredients Card
-            ExpansionTile(
-              title: const Text("View Ingredients"),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: product.ingredients.map((ingredient) {
-                      return Chip(
-                        label: Text(ingredient),
-                        backgroundColor: color.withOpacity(0.05),
-                        labelStyle: const TextStyle(fontSize: 12),
-                      );
-                    }).toList(),
-                  ),
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                title: Text(
+                  "View Ingredients",
+                  style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
                 ),
-              ],
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: product.ingredients.map((ingredient) {
+                        return Chip(
+                          label: Text(ingredient),
+                          backgroundColor: color.withOpacity(0.05),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          side: BorderSide(color: color.withOpacity(0.2)),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
             
             const SizedBox(height: 24),
 
-            // Better Alternatives (Phase 4a: Swap Engine)
+            // Better Alternatives
             if (verdict.verdict != Verdict.good)
               _BetterAlternativesSection(product: product, profile: profile),
 
@@ -227,9 +250,6 @@ class VerdictScreen extends StatelessWidget {
             
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
               child: const Text("Scan Another Product"),
             ),
           ],
@@ -241,22 +261,22 @@ class VerdictScreen extends StatelessWidget {
   Color _getVerdictColor() {
     switch (verdict.verdict) {
       case Verdict.good:
-        return Colors.green;
+        return Colors.green.shade600;
       case Verdict.caution:
-        return Colors.orange;
+        return Colors.orange.shade600;
       case Verdict.avoid:
-        return Colors.red;
+        return Colors.red.shade600;
     }
   }
 
   IconData _getVerdictIcon() {
     switch (verdict.verdict) {
       case Verdict.good:
-        return Icons.check_circle;
+        return Icons.check_circle_rounded;
       case Verdict.caution:
         return Icons.warning_amber_rounded;
       case Verdict.avoid:
-        return Icons.dangerous;
+        return Icons.dangerous_rounded;
     }
   }
 }
@@ -272,14 +292,18 @@ class _BetterAlternativesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Better Alternatives",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           "Based on your health profile, consider these instead:",
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)),
         ),
         const SizedBox(height: 16),
         FutureBuilder<List<NutritionData>>(
@@ -289,7 +313,10 @@ class _BetterAlternativesSection extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Text("No alternatives found for this category.");
+              return Text(
+                "No alternatives found for this category.",
+                style: TextStyle(color: Theme.of(context).colorScheme.onBackground.withOpacity(0.5)),
+              );
             }
             return SizedBox(
               height: 180,
@@ -302,6 +329,7 @@ class _BetterAlternativesSection extends StatelessWidget {
                     width: 140,
                     margin: const EdgeInsets.only(right: 16),
                     child: Card(
+                      color: Theme.of(context).cardColor,
                       child: Column(
                         children: [
                           if (alt.imageUrl != null && alt.imageUrl!.isNotEmpty)
@@ -330,7 +358,11 @@ class _BetterAlternativesSection extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 12, 
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                           ),
                           Padding(
@@ -343,7 +375,7 @@ class _BetterAlternativesSection extends StatelessWidget {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.green,
+                                        color: Colors.green.shade600,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -355,7 +387,11 @@ class _BetterAlternativesSection extends StatelessWidget {
                                   ),
                                 const SizedBox(width: 4),
                                 IconButton(
-                                  icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
+                                  icon: Icon(
+                                    Icons.thumb_up_alt_outlined, 
+                                    size: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text("Upvoted ${alt.productName}! Added to Safety Swaps.")),

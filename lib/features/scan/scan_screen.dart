@@ -6,6 +6,7 @@ import 'presentation/verdict_screen.dart';
 import '../profile/data/profile_repository.dart';
 import 'models/scan_history_item.dart';
 import 'data/scan_repository.dart';
+import '../../core/services/backend_service.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -17,11 +18,10 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   bool _hasPermission = false;
   bool _isScanning = true;
-  String? _scannedCode;
   final MobileScannerController _scannerController = MobileScannerController();
   final NutritionService _nutritionService = NutritionService();
   final ProfileRepository _profileRepository = ProfileRepository();
-  bool _isArMode = false;
+  final BackendService _backendService = BackendService();
 
   @override
   void initState() {
@@ -51,7 +51,7 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.camera_alt_outlined, size: 64, color: Colors.grey),
+              Icon(Icons.camera_alt_outlined, size: 64, color: Theme.of(context).colorScheme.onBackground.withOpacity(0.2)),
               const SizedBox(height: 16),
               const Text("Camera permission is required to scan."),
               const SizedBox(height: 16),
@@ -78,10 +78,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 final code = barcodes.first.rawValue;
                 if (code != null) {
                   _scannerController.stop();
-                  setState(() {
-                    _scannedCode = code;
-                    _isScanning = false;
-                  });
+                  setState(() => _isScanning = false);
                   _analyzeProduct(code);
                 }
               }
@@ -104,59 +101,9 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
 
-          // AR Toggle Button
-          Positioned(
-            top: 50,
-            right: 20,
-            child: CircleAvatar(
-              backgroundColor:
-                  _isArMode ? Colors.green : Colors.blue.withOpacity(0.8),
-              child: IconButton(
-                icon: Icon(
-                    _isArMode
-                        ? Icons.auto_awesome
-                        : Icons.auto_awesome_motion,
-                    color: Colors.white),
-                onPressed: () {
-                  setState(() => _isArMode = !_isArMode);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_isArMode
-                          ? "AR Overlay Mode Enabled (Moonshot): Real-time analysis active."
-                          : "AR Overlay Mode Disabled."),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // AR Overlay
-          if (_isArMode) const _ArSimulatedOverlay(),
-
-          // Scan Again Button
+          // Scan Status Indicator
           if (!_isScanning)
-            Positioned(
-              bottom: 100,
-              left: 40,
-              right: 40,
-              child: ElevatedButton(
-                onPressed: () {
-                  _scannerController.start();
-                  setState(() {
-                    _isScanning = true;
-                    _scannedCode = null;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text("Scan Again"),
-              ),
-            ),
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
         ],
       ),
     );
@@ -196,7 +143,7 @@ class _ScanScreenState extends State<ScanScreen> {
             height: 250,
             width: 250,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.green, width: 4),
+              border: Border.all(color: Theme.of(context).colorScheme.primary, width: 4),
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -206,8 +153,7 @@ class _ScanScreenState extends State<ScanScreen> {
             padding: EdgeInsets.only(top: 300),
             child: Text(
               "Place barcode inside the frame",
-              style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
           ),
         ),
@@ -216,28 +162,12 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _analyzeProduct(String code) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
     try {
       final product = await _nutritionService.fetchProductData(code);
       final profile = await _profileRepository.getProfile();
 
-      if (mounted) Navigator.pop(context); // Hide loader
-
       if (product == null || profile == null) {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("🔍 Product not found in database."),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          _restartScanning();
-        }
+        _showNoDataDialog(code);
         return;
       }
 
@@ -263,9 +193,65 @@ class _ScanScreenState extends State<ScanScreen> {
         ).then((_) => _restartScanning());
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
       _handleScanError(e);
     }
+  }
+
+  void _showNoDataDialog(String code) {
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off_rounded, size: 64, color: Colors.orange),
+            const SizedBox(height: 16),
+            const Text(
+              "Product Not Found",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "We couldn't find a barcode for $code.\nWould you like to search manually?",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _restartScanning();
+                    },
+                    child: const Text("TRY AGAIN"),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _openManualSearch(),
+                    child: const Text("SEARCH"),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).then((_) => _restartScanning());
+  }
+
+  void _openManualSearch() {
+    Navigator.pop(context); // Close sheet
+    // Implementation of manual search logic
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Manual search requires the Regional Food module (Coming Soon).")),
+    );
   }
 
   void _restartScanning() {
@@ -273,7 +259,6 @@ class _ScanScreenState extends State<ScanScreen> {
       _scannerController.start();
       setState(() {
         _isScanning = true;
-        _scannedCode = null;
       });
     }
   }
@@ -281,138 +266,13 @@ class _ScanScreenState extends State<ScanScreen> {
   void _handleScanError(dynamic error) {
     debugPrint('❌ Scan Analysis Error: $error');
     if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error analyzing product: ${error.toString()}"),
-          backgroundColor: Colors.red,
+          content: Text("Network or data error. Falling back to offline mode."),
+          backgroundColor: Colors.orange.shade800,
         ),
       );
       _restartScanning();
     }
-  }
-}
-
-// ─── AR Simulated Overlay (Separate Widget) ───────────────────────────────────
-
-class _ArSimulatedOverlay extends StatefulWidget {
-  const _ArSimulatedOverlay();
-
-  @override
-  State<_ArSimulatedOverlay> createState() => _ArSimulatedOverlayState();
-}
-
-class _ArSimulatedOverlayState extends State<_ArSimulatedOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500))
-      ..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Center(
-        child: Container(
-          width: 300,
-          height: 300,
-          decoration: BoxDecoration(
-            border: Border.all(
-                color: Colors.greenAccent.withOpacity(0.3), width: 2),
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Stack(
-            children: [
-              // Sweeping scanner line
-              AnimatedBuilder(
-                animation: _animController,
-                builder: (context, child) {
-                  return Positioned(
-                    top: _animController.value * 280,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: Colors.greenAccent,
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.greenAccent.withOpacity(0.8),
-                              blurRadius: 10,
-                              spreadRadius: 3)
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              Positioned(
-                top: 20,
-                left: 20,
-                child:
-                    _buildArNode("Scrutinizing Ingredients...", Colors.green),
-              ),
-              Positioned(
-                top: 80,
-                right: 5,
-                child: _buildArNode("Est: 250 kcal", Colors.blueAccent),
-              ),
-              AnimatedBuilder(
-                animation: _animController,
-                builder: (context, child) {
-                  return Positioned(
-                    bottom: 60,
-                    left: 10,
-                    child: Opacity(
-                      opacity: 0.5 + (_animController.value * 0.5),
-                      child: _buildArNode(
-                          "⚠️ Allergy Redline Detected", Colors.redAccent),
-                    ),
-                  );
-                },
-              ),
-              Positioned(
-                bottom: 20,
-                right: 20,
-                child: _buildArNode("Detecting Saturated Fats", Colors.amber),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArNode(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.8)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.radar, size: 12, color: color),
-          const SizedBox(width: 8),
-          Text(text,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
   }
 }

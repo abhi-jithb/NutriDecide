@@ -1,100 +1,107 @@
-# 🎓 Learning NutriDecide: Technical Blueprint & Evolution
+# 🎓 Master Guide: NutriDecide Core Working & Architecture (v1.5)
 
-Welcome to the **NutriDecide** knowledge base. This document is a guide for developers to understand the technical architecture and the production-ready state of the application.
-
----
-
-## 🏛️ Architectural Framework
-NutriDecide is built using a **Feature-First Clean Architecture**. It is designed for maximum performance, minimal binary size, and data transparency.
-
-### **Core Layers**
-- **Inference Engine:** Located in `lib/features/scan/services/nutrition_service.dart`, it cross-references scanned food data with the user's **Biometric Profile** and health conditions.
-- **Offline Intelligence:** The `FoodDatabaseService` manages a high-speed Hive database for offline product lookup using a 20k indexed dataset.
+This document is the definitive technical blueprint of the NutriDecide production system. It explains **exactly how the app thinks**, the logic behind each verdict, and the specific code implementation for every core feature.
 
 ---
 
-## 🔍 Deep Dive: File & Module Architecture
+## 🏛️ 1. Systems Overview & Workflow
 
-### **1. Frontend (Flutter / Dart)**
-Located in the `lib/` directory:
-- **`lib/features/scan/`**:
-    - `scan_screen.dart`: Focused, one-tap barcode detection using `mobile_scanner`.
-    - `nutrition_service.dart`: The brain that calculates health verdicts (GOOD / CAUTION / AVOID).
-    - `scoring_engine.dart`: Advanced ruleset for artificial additives and nutrient density.
-- **`lib/features/profile/`**:
-    - `profile_screen.dart`: Simple, biometric dashboard showing age, height, and medical conditions.
-- **`lib/features/home/`**:
-    - `home_screen.dart`: Minimalist "Scan First" dashboard.
+NutriDecide translates complex biochemical data (Nutrition Facts + Ingredients) into a simple, personalized verdict (**GOOD / CAUTION / AVOID**). 
 
-### **2. Backend (Node.js / Express)**
-Located in the `backend/` directory:
-- **`server.js`**: A production-grade API for serving supplemental food data. Currently optimized for cloud deployment (Render/Atlas) with health monitoring and security headers.
+### **The Journey of a Scan (End-to-End)**
+1.  **Scanner Phase:** `ScanScreen` captures a barcode using `mobile_scanner`.
+2.  **Acquisition Phase:** `NutritionService` performs a **Hybrid Lookup** (Hive ➡️ OpenFoodFacts API).
+3.  **Intelligence Phase:** 
+    - `IngredientAnalyzer` parses raw strings for processing markers.
+    - `ScoringEngine` calculates a **Personalized Risk Score**.
+4.  **Verdict Phase:** `VerdictScreen` displays the result with reasons and **Safety Swaps**.
 
 ---
 
-## 🛠️ Technical Stack & Dependencies
+## 🧠 2. Deep Dive: Key Code Implementations
 
-| Library / Tech | Role in NutriDecide |
-|---------|--------------------|
-| **`mobile_scanner`** | High-performance, low-latency live barcode detection. |
-| **`hive`** | Parallel, persistent offline storage for 20k+ food items. |
-| **`firebase_auth`** | Secure user authentication and session management. |
-| **`google_fonts`** | Implements the premium **Outfit** typography. |
-| **`shared_preferences`** | User preference persistence (Dark Mode, Alerts). |
+### **A. Intelligence Engine (The "Brain")**
+Located in: `lib/features/scan/services/scoring_engine.dart`
 
----
+> [!IMPORTANT]
+> This is a **Weighted Risk Algorithm**. It doesn't just look at calories; it looks at how those calories interact with the user's specific medical conditions.
 
-## 🎙️ The One-Tap Flow
-The project's latest evolution focuses on **Product Honesty** and **Extreme Simplification**.
-1. **No-Guesswork Verdicts:** Uses a confidence layer to tell you when data is partial or uncertain.
-2. **Medical Guard:** All users must accept a medical disclaimer before accessing health verdicts.
-3. **Biometric Alignment:** Every verdict is weighted against the user's age, weight, and specific medical conditions (Diabetes, PCOS, Hypertension).
-
----
-
-## 🌎 3. Production Deployment Guide
-
-### **🛰️ Step A: Database & Backend**
-1. **MongoDB Atlas:** 
-   - Deploy a cluster and get your `MONGO_URI`.
-2. **Render.com (Backend API):**
-   - Push the `backend/` folder and link it to [Render](https://render.com).
-   - Set Build: `npm install` | Start: `npm start`.
-   - Add Env Variables: `MONGO_URI` and `PORT`.
-
-### **🔑 Step B: Firebase Integration**
-1. Initialize a **Firebase Project** at [console.firebase.google.com](https://console.firebase.google.com).
-2. Enable **Email/Password Auth** and **Cloud Firestore**.
-3. Create a **Firestore Database** in "Production Mode".
-4. Download and add `google-services.json` (Android) to `android/app/`.
-
-### **🛡️ Step C: Build the App Bundle**
-1. Run the optimized build for the Google Play Store:
-   ```bash
-   flutter build appbundle --release
-   ```
+#### **Specific Code Explanations:**
+- **Lines 15-20 (Nutrient Extraction):** We normalize raw data from various sources into a 100g standard.
+- **Lines 23-28 (Condition-Based Weighting):** 
+  - `if (profile.hasDiabetes) sugarBase *= 2.0;`
+  - This line ensures that a product with 15g of sugar might be "CAUTION" for a normal user but an immediate "AVOID" for a diabetic.
+- **Lines 77-81 (The Allergy Blocker):** 
+  - `if (product.ingredients.any((ing) => ing.toLowerCase().contains(allergy.toLowerCase()))) { return 100.0; }`
+  - This is a fail-safe. If an ingredient matches a user's allergy, the score is immediately set to 100 (Maximum Risk/Avoid).
+- **Line 84-89 (Dietary Compliance):** Hard-coded animal-product check for Vegan profiles.
 
 ---
 
-## 📈 Evolutionary Milestones
+### **B. Hybrid Data Acquisition (Offline First)**
+Located in: `lib/features/scan/services/nutrition_service.dart`
 
-### **V1.0 - V1.4: Feature Exploration**
-Initial versions explored Voice Search, Behavioral Coaching, and complex dashboard analytics.
-
-### **V1.5: Production Hardening (Current)**
-- **Feature Pruning:** Removed non-functioning Voice and AI components to ensure 100% stable performance.
-- **Biometric Precision:** Added Age and localized health condition logic to the profile.
-- **Backend Optimization:** Migrated from a local-only setup to a cloud-ready Express/MongoDB architecture.
-- **Offline Migration:** Transitioned the core scanner to use a 20k Hive-indexed database, reducing API dependency.
+#### **How it works:**
+1.  **Phase 1 (Local):** `fetchProductData` (Line 18) first checks `FoodDatabaseService` (Hive). This is $O(1)$ and works offline.
+2.  **Phase 2 (Cloud Fallback):** If local records fail, it triggers a `http.get` to OpenFoodFacts (Line 27) with a **4-second strict timeout**.
+3.  **Phase 3 (Active Caching):** If the API returns valid data, we automatically cross-validate it (`remoteData.isComplete` at Line 37) and save it to the local Hive database for future offline use.
 
 ---
 
-## 🚀 Vision for the Future
-The project is architected for expansion into:
-- **Family Hub:** Multi-profile management to track kids' allergy risks.
-- **Festival Modes:** Dedicated UI modules for high-calorie festive seasons.
-- **AR Core Integration:** Transitioning the scanner into a full functional AR reality screen.
+### **C. Startup & Parallelization**
+Located in: `lib/core/services/app_initializer.dart`
+
+To ensure a "Premium" feel, the app must boot in under 2 seconds.
+- **Line 28 (`Future.wait`):** We boot **Infrastructure** (DotEnv, Firebase, Hive) in parallel.
+- **Line 35 (`initializeDatabase`):** We index the curated 20,000 product JSON dataset into Hive so that first-time scans are instantaneous.
+- **Line 56 (`Firebase.initializeApp`):** Protected initialization to prevent crashes when Google Services are missing (e.g., development environments).
 
 ---
 
-*Built with precision. Designed for health. 🥗*
+## 🛰️ 3. Backend Architecture (Node.js + MongoDB)
+
+Located in: `backend/`
+Hosted on: **Render.com** (Production)
+
+### **Key Logic:**
+- **Manual Regional Food Search:** Since barcodes don't exist for "Fresh Puttu" or "Homemade Dosa," the backend serves a fuzzy-search API.
+- **Health Endpoint:** (Line 31 in `BackendService.dart`) Used for uptime monitoring and reporting connection health to the user.
+- **MongoDB Atlas:** Stores regional food data and health benchmarks that are too large for the mobile binary.
+
+---
+
+## 🛡️ 4. Stability & Production Decisions
+
+NutriDecide reached "Production Ready" state by **removing misleading or broken components**:
+
+| Removed Feature | Rationale | Final Code Status |
+|---|---|---|
+| **Voice Logging** | High latency and poor accuracy on low-end devices. | Entirely removed from `lib/features/voice`. |
+| **AI Coach** | Purely simulation-based; lacked true science backing. | References removed from `BottomNav` and UI. |
+| **AR Overlay** | Misleading; suggested real-time visual analysis of ingredients. | Removed from `ScanScreen`. |
+
+---
+
+## 🎨 5. The Design System (Material 3)
+
+The app uses an **Adaptive Theme System** defined in `lib/core/theme/app_theme.dart`.
+
+> [!TIP]
+> **Pointing a code line:** 
+> In `lib/features/profile/profile_screen.dart`, line 38 used to be `Colors.white`. This broke Dark Mode. It was updated to `Theme.of(context).scaffoldBackgroundColor` to ensure that standard Material 3 color tokens are respected.
+
+### **Typography**
+- **Outfit:** Used for headings to give a modern, health-tech feel.
+- **Inter:** Used for body text for maximum readability of ingredient lists.
+
+---
+
+## 🚀 6. Future-Proofing for Developers
+
+1.  **Adding a New Rule:** Go to `ScoringEngine.calculateRiskScore` and add a new weight condition based on `profile.conditions`.
+2.  **Expanding Local Database:** Add a new entry to `assets/data/foods_clean.json` and it will be indexed into Hive on the next app boot.
+3.  **Testing Environment:** Point `BACKEND_URL` in `.env` to `http://localhost:5000` to test regional food additions locally.
+
+---
+
+*This guide ensures that any engineer can maintain, audit, and improve the NutriDecide ecosystem while maintaining its core mission of **Health Clarity.*** 🥤

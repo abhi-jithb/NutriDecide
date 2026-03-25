@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -61,9 +61,13 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildScanButton(),
               const SizedBox(height: 48),
               if (_history.isNotEmpty) ...[
-                const Text(
+                Text(
                   "Recent Scans",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ..._history.take(5).map((item) => _buildRecentItem(item)),
@@ -73,7 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const ScanHistoryScreen()),
                   ).then((_) => _loadData()),
-                  child: const Text("View Full History →"),
+                  child: Text(
+                    "View Full History →",
+                    style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                  ),
                 ),
               ] else 
                 _buildEmptyState(),
@@ -91,29 +98,45 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           "Welcome back!",
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6), 
+            fontSize: 16, 
+            fontWeight: FontWeight.w500
+          ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           "Ready to check your food?",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+          style: TextStyle(
+            fontSize: 24, 
+            fontWeight: FontWeight.w900,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
         ),
         const SizedBox(height: 12),
         if (_streak > 0)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.amber.shade100,
+              color: Theme.of(context).colorScheme.secondaryContainer,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.bolt_rounded, color: Colors.amber.shade900, size: 16),
+                Icon(
+                  Icons.bolt_rounded, 
+                  color: Theme.of(context).colorScheme.onSecondaryContainer, 
+                  size: 16
+                ),
                 const SizedBox(width: 4),
                 Text(
                   "$_streak DAY STREAK",
-                  style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSecondaryContainer, 
+                    fontSize: 11, 
+                    fontWeight: FontWeight.w900
+                  ),
                 ),
               ],
             ),
@@ -164,13 +187,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecentItem(ScanHistoryItem item) {
     final color = _getStatusColor(item.verdict);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200
+        ),
+        boxShadow: isDark ? [] : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -187,12 +221,26 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(item.verdict, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+                Text(
+                  item.productName, 
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  )
+                ),
+                Text(
+                  item.verdict, 
+                  style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)
+                ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+          Icon(
+            Icons.chevron_right, 
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3), 
+            size: 20
+          ),
         ],
       ),
     );
@@ -203,11 +251,18 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           const SizedBox(height: 48),
-          Icon(Icons.history, color: Colors.grey.shade300, size: 48),
+          Icon(
+            Icons.history, 
+            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.1), 
+            size: 48
+          ),
           const SizedBox(height: 16),
           Text(
             "No scans yet. Start identifying your food!",
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.4), 
+              fontSize: 14
+            ),
           ),
         ],
       ),

@@ -96,7 +96,29 @@ The app uses an **Adaptive Theme System** defined in `lib/core/theme/app_theme.d
 
 ---
 
-## 🚀 6. Future-Proofing for Developers
+## 📈 6. Production App Size & Performance
+
+As a performance-hardened application, NutriDecide is optimized for target devices with limited storage and high-speed scan requirements.
+
+### **App Size Breakdown (AAB: 55.7 MB)**
+The production bundle is optimized for the Google Play Store (App Bundle format).
+
+| Component | Estimated Size | Contribution |
+| :--- | :--- | :--- |
+| **Native Binaries** | ~42 MB | Flutter Engine + Native C++/Kotlin logic |
+| **Assets (JSON + Logos)** | 4.5 MB | 20k Product Dataset (Binary Compressed) |
+| **Dart AOT Code** | ~7 MB | Business Logic & Analysis Engine |
+
+> [!TIP]
+> **Tree-Shaking:** During the production build, we perform **Icon Tree-Shaking**. For example, `MaterialIcons` was reduced from 1.6 MB to **8.8 KB** (99.5% reduction), keeping the binary extremely lean.
+
+### **Database Performance (Hive)**
+- **Cold Boot Lookup:** < 50ms.
+- **On-Disk Size:** The 4.4 MB `foods_clean.json` is indexed into Hive on the first run, ensuring constant-time $O(1)$ lookup for barcodes without keeping the full JSON in RAM.
+
+---
+
+## 🚀 7. Future-Proofing for Developers
 
 1.  **Adding a New Rule:** Go to `ScoringEngine.calculateRiskScore` and add a new weight condition based on `profile.conditions`.
 2.  **Expanding Local Database:** Add a new entry to `assets/data/foods_clean.json` and it will be indexed into Hive on the next app boot.

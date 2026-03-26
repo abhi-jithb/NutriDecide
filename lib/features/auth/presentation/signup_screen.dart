@@ -160,7 +160,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               setState(() => _isLoading = true);
 
                               try {
-                                final result = await AuthService().registerWithEmail(email, password);
+                                final result = await AuthService().registerWithEmail(email, password, name);
                                 if (result != null && mounted) {
                                   Navigator.pushReplacement(
                                     context,

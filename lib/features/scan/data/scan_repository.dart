@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/scan_history_item.dart';
 
 class ScanRepository {
@@ -23,7 +24,7 @@ class ScanRepository {
       // Optional: Prune locally or via cloud function to keep last 20.
       // For now, we'll keep the full history on Firestore as it's more "Production Ready".
     } catch (e) {
-      print('❌ ScanRepository save Error: $e');
+      debugPrint('❌ ScanRepository save Error: $e');
     }
   }
 
@@ -41,7 +42,7 @@ class ScanRepository {
           .map((doc) => ScanHistoryItem.fromMap(doc.data() as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print('❌ ScanRepository fetch Error: $e');
+      debugPrint('❌ ScanRepository fetch Error: $e');
       return [];
     }
   }
@@ -56,7 +57,7 @@ class ScanRepository {
         await doc.reference.delete();
       }
     } catch (e) {
-       print('❌ ScanRepository clear Error: $e');
+       debugPrint('❌ ScanRepository clear Error: $e');
     }
   }
 }

@@ -13,7 +13,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _healthAlerts = true;
   bool _isLoading = true;
 
   @override
@@ -23,17 +22,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _healthAlerts = prefs.getBool('health_alerts') ?? true;
       _isLoading = false;
     });
-  }
-
-  Future<void> _toggleHealthAlerts(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('health_alerts', value);
-    setState(() => _healthAlerts = value);
   }
 
   @override
@@ -57,13 +48,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.dark_mode_outlined,
             value: isDark,
             onChanged: (val) => MyApp.of(context)?.toggleTheme(val),
-          ),
-          _settingsSwitch(
-            title: "Health Alerts",
-            subtitle: "Warning notifications on risky food scans",
-            icon: Icons.notifications_active_outlined,
-            value: _healthAlerts,
-            onChanged: _toggleHealthAlerts,
           ),
           
           const SizedBox(height: 32),

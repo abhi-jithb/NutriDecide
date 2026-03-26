@@ -52,4 +52,5 @@ app.*.map.json
 
 # Env Secrets
 .env
+android/app/google-services.json
 

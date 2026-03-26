@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../navigation/bottom_nav_screen.dart';
 import '../../profile/models/user_profile.dart';
 import '../../profile/data/profile_repository.dart';
@@ -19,6 +20,7 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
+  final nameController = TextEditingController();
   final ageController = TextEditingController();
   final heightController = TextEditingController();
   final weightController = TextEditingController();
@@ -42,6 +44,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.initState();
     if (widget.existingProfile != null) {
       final p = widget.existingProfile!;
+      nameController.text = p.name ?? "";
       ageController.text = p.age.toString();
       heightController.text = p.height.toString();
       weightController.text = p.weight.toString();
@@ -54,6 +57,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       hypertension = p.hasHypertension;
       pcos = p.hasPcos;
       allergiesController.text = p.allergies.join(', ');
+    } else {
+      nameController.text = FirebaseAuth.instance.currentUser?.displayName ?? "";
     }
   }
 
@@ -95,6 +100,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: "Full Name",
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: ageController,
                         keyboardType: TextInputType.number,
@@ -156,13 +169,57 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 32),
               const Text("Food Allergies", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-              TextField(
-                controller: allergiesController,
-                decoration: const InputDecoration(
-                  labelText: "Enter allergies",
-                  hintText: "e.g. Peanuts, Milk, Soy (comma separated)",
-                  prefixIcon: Icon(Icons.warning_amber_rounded),
-                ),
+              
+              // Smart Allergy Autocomplete
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  const commonAllergens = [
+                    "Peanuts", "Milk", "Eggs", "Soy", "Wheat", "Fish", "Shellfish", 
+                    "Tree Nuts", "Sesame", "Mustard", "Celery", "Sulphites", "Lupin"
+                  ];
+                  if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
+                  
+                  // Get the last typed part (after the last comma)
+                  final parts = textEditingValue.text.split(',');
+                  final lastPart = parts.last.trim().toLowerCase();
+                  
+                  if (lastPart.isEmpty) return const Iterable<String>.empty();
+                  
+                  return commonAllergens.where((String option) {
+                    return option.toLowerCase().contains(lastPart);
+                  });
+                },
+                onSelected: (String selection) {
+                  final parts = allergiesController.text.split(',');
+                  if (parts.isNotEmpty) {
+                    parts.removeLast();
+                    parts.add(" $selection");
+                    allergiesController.text = parts.join(',').trim();
+                    // Move cursor to end
+                    allergiesController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: allergiesController.text.length)
+                    );
+                  }
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  // Synchronize with the existing controller
+                  if (controller.text.isEmpty && allergiesController.text.isNotEmpty) {
+                    controller.text = allergiesController.text;
+                  }
+                  controller.addListener(() {
+                    allergiesController.text = controller.text;
+                  });
+
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: "Enter allergies",
+                      hintText: "e.g. Peanuts, Milk, Soy",
+                      prefixIcon: Icon(Icons.warning_amber_rounded),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 32),
@@ -212,6 +269,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                   final profile = UserProfile(
                     uid: widget.uid,
+                    name: nameController.text.trim(),
                     age: int.tryParse(ageController.text) ?? 25,
                     height: double.tryParse(heightController.text) ?? 0,
                     weight: double.tryParse(weightController.text) ?? 0,

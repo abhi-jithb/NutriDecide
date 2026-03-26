@@ -2,6 +2,7 @@ import 'dart:convert';
 
 class UserProfile {
   final String? uid;
+  final String? name;
   final int age;
   final double height;
   final double weight;
@@ -18,6 +19,7 @@ class UserProfile {
 
   UserProfile({
     this.uid,
+    this.name,
     required this.age,
     required this.height,
     required this.weight,
@@ -36,6 +38,7 @@ class UserProfile {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
+      'name': name,
       'age': age,
       'height': height,
       'weight': weight,
@@ -55,6 +58,7 @@ class UserProfile {
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       uid: map['uid'],
+      name: map['name'],
       age: map['age'] ?? 25,
       height: (map['height'] ?? 0).toDouble(),
       weight: (map['weight'] ?? 0).toDouble(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../profile/data/profile_repository.dart';
+import '../profile/models/user_profile.dart';
 import '../scan/scan_screen.dart';
 import '../scan/models/scan_history_item.dart';
 import '../scan/data/scan_repository.dart';
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScanRepository _scanRepo = ScanRepository();
   final ProfileRepository _profileRepo = ProfileRepository();
+  UserProfile? _profile;
   List<ScanHistoryItem> _history = [];
   bool _isLoading = true;
   int _streak = 0;
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     setState(() {
+      _profile = profile;
       _history = history;
       _isLoading = false;
     });
@@ -97,20 +100,19 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Welcome back!",
+          "Hi ${_profile?.name?.split(' ').first ?? 'there'} 👋",
+          style: TextStyle(
+            fontSize: 28, 
+            fontWeight: FontWeight.w900,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
+        ),
+        Text(
+          "Ready to check your food?",
           style: TextStyle(
             color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6), 
             fontSize: 16, 
             fontWeight: FontWeight.w500
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "Ready to check your food?",
-          style: TextStyle(
-            fontSize: 24, 
-            fontWeight: FontWeight.w900,
-            color: Theme.of(context).colorScheme.onBackground,
           ),
         ),
         const SizedBox(height: 12),

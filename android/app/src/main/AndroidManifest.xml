@@ -10,7 +10,7 @@
     </queries>
 
     <application
-        android:label="nutri_decide"
+        android:label="NutriDecide"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">

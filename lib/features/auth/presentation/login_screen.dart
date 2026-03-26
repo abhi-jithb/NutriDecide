@@ -210,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 24),
                                 
                                 Center(
                                   child: TextButton(

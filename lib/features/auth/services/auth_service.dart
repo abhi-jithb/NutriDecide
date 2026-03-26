@@ -11,6 +11,7 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
+
   Future<UserCredential?> loginWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(email: email, password: password);
@@ -20,9 +21,11 @@ class AuthService {
     }
   }
 
-  Future<UserCredential?> registerWithEmail(String email, String password) async {
+  Future<UserCredential?> registerWithEmail(String email, String password, String name) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      await credential.user?.updateDisplayName(name);
+      return credential;
     } catch (e) {
       debugPrint('❌ AuthService Signup Error: $e');
       rethrow;

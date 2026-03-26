@@ -9,78 +9,114 @@ class ScoringEngine {
     required UserProfile profile,
     required IngredientAnalysisResult ingredientAnalysis,
   }) {
-    double riskScore = 0;
-
     final nutrients = product.nutrients;
-    final sugar100g = _asDouble(nutrients['sugars_100g']);
-    final sodium100g = _asDouble(nutrients['sodium_100g']);
-    final satFat100g = _asDouble(nutrients['saturated-fat_100g'] ?? nutrients['saturated_fat_100g']);
-    final kcal100g = _asDouble(nutrients['energy-kcal_100g'] ?? nutrients['energy_kcal_100g']);
-    final fiber100g = _asDouble(nutrients['fiber_100g']);
-    final protein100g = _asDouble(nutrients['protein_100g']);
+    final sugar = _asDouble(nutrients['sugars_100g']) ?? 0.0;
+    final sodium = _asDouble(nutrients['sodium_100g']) ?? 0.0; // in grams
+    final satFat = _asDouble(nutrients['saturated-fat_100g'] ?? nutrients['saturated_fat_100g']) ?? 0.0;
+    final kcal = _asDouble(nutrients['energy-kcal_100g'] ?? nutrients['energy_kcal_100g']) ?? 0.0;
+    final fiber = _asDouble(nutrients['fiber_100g']) ?? 0.0;
+    final protein = _asDouble(nutrients['protein_100g']) ?? 0.0;
 
-    // 1. Base Sugar Risk (High cap at 40 points)
-    if (sugar100g != null) {
-      double sugarBase = (sugar100g / 25.0) * 20.0; // 25g/100g is a lot
-      if (profile.hasDiabetes) sugarBase *= 2.0;
-      if (profile.hasPcos) sugarBase *= 1.5;
-      riskScore += sugarBase.clamp(0, 50);
+    // Multipliers based on medical conditions
+    double sugarMultiplier = 1.0;
+    double sodiumMultiplier = 1.0;
+    double satFatMultiplier = 1.0;
+
+    if (profile.hasDiabetes) {
+      sugarMultiplier = 2.5; // High sensitivity to sugar
+    }
+    if (profile.hasHypertension) {
+      sodiumMultiplier = 3.5; // Extreme sensitivity to sodium (Salt)
+    }
+    if (profile.hasPcos) {
+      satFatMultiplier = 2.0;
+      sugarMultiplier = 1.5;
     }
 
-    // 2. Base Sodium Risk (High cap at 40 points)
-    if (sodium100g != null) {
-      double sodiumMg = sodium100g * 1000;
-      double sodiumBase = (sodiumMg / 800.0) * 20.0; // 800mg/100g is very high
-      if (profile.hasHypertension) sodiumBase *= 2.0;
-      riskScore += sodiumBase.clamp(0, 40);
+    // Weighted Risk Calculation
+    // Base Risk (0-100)
+    double calculatedRisk = 0;
+
+    // 1. Sugar Risk
+    // Assuming 'sugar' is in grams per 100g
+    if (sugar > 15) {
+      calculatedRisk += (sugar - 15) * 1.5 * sugarMultiplier;
+    } else if (sugar > 5 && profile.hasDiabetes) {
+      calculatedRisk += 20 * sugarMultiplier;
+    }
+    
+    // 2. Sodium Risk (THE SALT FIX)
+    // Sodium is in grams per 100g, convert to mg for easier comparison
+    final sodiumMg = sodium * 1000;
+    // Salt is roughly 40% Sodium. A product with >400mg sodium per 100g is HIGH.
+    if (sodiumMg > 400) {
+      calculatedRisk += (sodiumMg / 100) * 2.5 * sodiumMultiplier;
+    } else if (sodiumMg > 150 && profile.hasHypertension) {
+      // For hypertensive users, even moderate sodium is risky
+      calculatedRisk += 40 * sodiumMultiplier;
     }
 
     // 3. Saturated Fat Risk
-    if (satFat100g != null) {
-      double fatBase = (satFat100g / 10.0) * 15.0; // 10g/100g is high
-      riskScore += fatBase.clamp(0, 30);
-    }
+    // Assuming 'satFat' is in grams per 100g
+    if (satFat > 5) calculatedRisk += (satFat - 5) * 2.5 * satFatMultiplier;
 
-    // 4. Calorie Density
-    if (kcal100g != null) {
-      if (kcal100g > 500) riskScore += 20;
-      else if (kcal100g > 300) riskScore += 10;
+    // 4. Calorie Density & Goals
+    if (kcal > 500) {
+      calculatedRisk += (profile.goal == 'Weight Loss') ? 30 : 15;
+    } else if (kcal > 300) {
+      calculatedRisk += (profile.goal == 'Weight Loss') ? 15 : 5;
+    }
+    
+    // Weight Gain Bonus: High calorie is NOT necessarily bad if no other red flags
+    if (profile.goal == 'Weight Gain' && kcal > 400 && sugar < 10) {
+      calculatedRisk -= 10;
     }
 
     // 5. Ingredient Additives & Processing
-    if (ingredientAnalysis.hasHarmfulAdditives) riskScore += 15;
-    if (ingredientAnalysis.hasRefinedSugars) riskScore += 10;
+    if (ingredientAnalysis.hasHarmfulAdditives) calculatedRisk += 20;
+    if (ingredientAnalysis.hasRefinedSugars) calculatedRisk += 15;
     if (ingredientAnalysis.hasArtificialSweeteners) {
       // Stricter for fitness mode
-      riskScore += (profile.dietType == 'Fitness / Gym') ? 20 : 10;
+      calculatedRisk += (profile.dietType == 'Fitness / Gym') ? 25 : 10;
     }
 
     // 6. Fitness / Gym Mode Optimizations
     if (profile.dietType == 'Fitness / Gym') {
       // Penalize low protein/high calorie density
-      if (protein100g != null && protein100g < 5 && kcal100g != null && kcal100g > 400) {
-        riskScore += 15;
+      if (protein < 5 && kcal > 350) {
+        calculatedRisk += 20;
       }
-      // Stricter salt/sugar for athletes
-      if ((sugar100g ?? 0) > 10) riskScore += 10;
+      // Stricter sugar limit for athletes
+      if (sugar > 8) calculatedRisk += 15;
     }
 
     // 7. Bonuses (Deductions)
-    if (fiber100g != null) {
-      riskScore -= (fiber100g / 5.0) * 10.0; // Max 10 point bonus
+    if (fiber > 2) {
+      calculatedRisk -= (fiber / 5.0) * 15.0; // Max 15 point bonus
     }
-    if (protein100g != null && profile.dietType == 'Fitness / Gym') {
-      riskScore -= (protein100g / 10.0) * 10.0; // Protein bonus for gym mode
+    if (protein > 10 && profile.dietType == 'Fitness / Gym') {
+      calculatedRisk -= (protein / 10.0) * 15.0; // Protein bonus for gym mode
     }
 
-    // 8. Absolute Blockers (Allergies/Dietary Mismatch)
-    for (var allergy in profile.allergies) {
-      if (product.ingredients.any((ing) => ing.toLowerCase().contains(allergy.toLowerCase()))) {
-        return 100.0; // Immediate Avoid
+    // 8. Ingredient-based Red Flags (Processed Additives) - Direct string checks
+    final ingredientsLower = product.ingredients.join(' ').toLowerCase();
+    if (ingredientsLower.contains("high fructose corn syrup")) calculatedRisk += 25;
+    if (ingredientsLower.contains("msg") || ingredientsLower.contains("monosodium glutamate")) calculatedRisk += 20;
+    if (ingredientsLower.contains("palm oil")) calculatedRisk += 15;
+    if (ingredientsLower.contains("sodium nitrate")) calculatedRisk += 20;
+
+    // 9. Final Fail-Safe: Allergies
+    for (String allergy in profile.allergies) {
+      final allergyLower = allergy.toLowerCase().trim();
+      if (allergyLower.isEmpty) continue;
+
+      // Smart matching: e.g. "Peanut" matches "Peanuts", "Peanut oil", etc.
+      if (ingredientsLower.contains(allergyLower)) {
+        return 100.0; // Immediate Maximum Risk
       }
     }
 
-    // Vegan/Vegetarian Check
+    // 10. Vegan/Vegetarian Check
     if (profile.dietType == 'Vegan') {
       final animalProducts = ['milk', 'egg', 'honey', 'meat', 'beef', 'pork', 'gelatin', 'curd', 'ghee', 'fish', 'whey'];
       if (product.ingredients.any((ing) => animalProducts.any((ap) => ing.toLowerCase().contains(ap)))) {
@@ -88,7 +124,7 @@ class ScoringEngine {
       }
     }
 
-    return riskScore.clamp(0.0, 100.0);
+    return calculatedRisk.clamp(0.0, 100.0);
   }
 
   static List<String> generateReasons({

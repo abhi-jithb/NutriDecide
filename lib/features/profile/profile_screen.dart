@@ -93,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            _profile?.gender ?? "User Profile",
+            _profile?.name ?? "User Profile",
             style: TextStyle(
               fontSize: 20, 
               fontWeight: FontWeight.w900,
@@ -101,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           Text(
-            "${_profile?.age ?? 25} Years Old",
+            "${_profile?.gender ?? 'User'} • ${_profile?.age ?? 25} Years Old",
             style: TextStyle(
               color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6), 
               fontWeight: FontWeight.bold

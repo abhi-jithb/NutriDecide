@@ -6,7 +6,6 @@ import 'presentation/verdict_screen.dart';
 import '../profile/data/profile_repository.dart';
 import 'models/scan_history_item.dart';
 import 'data/scan_repository.dart';
-import '../../core/services/backend_service.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -21,7 +20,6 @@ class _ScanScreenState extends State<ScanScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   final NutritionService _nutritionService = NutritionService();
   final ProfileRepository _profileRepository = ProfileRepository();
-  final BackendService _backendService = BackendService();
 
   @override
   void initState() {
@@ -220,10 +218,8 @@ class _ScanScreenState extends State<ScanScreen> {
               style: TextStyle(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 32),
-            Row(
-              children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
                       _restartScanning();
@@ -231,28 +227,12 @@ class _ScanScreenState extends State<ScanScreen> {
                     child: const Text("TRY AGAIN"),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _openManualSearch(),
-                    child: const Text("SEARCH"),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     ).then((_) => _restartScanning());
   }
 
-  void _openManualSearch() {
-    Navigator.pop(context); // Close sheet
-    // Implementation of manual search logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Manual search requires the Regional Food module (Coming Soon).")),
-    );
-  }
 
   void _restartScanning() {
     if (mounted) {

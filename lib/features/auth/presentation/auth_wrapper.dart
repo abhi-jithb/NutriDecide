@@ -20,25 +20,29 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _disclaimerAccepted = false;
   bool _loadingDisclaimer = true;
+  late Stream<User?> _authStream;
 
   @override
   void initState() {
     super.initState();
+    _authStream = AuthService().authStateChanges;
     _checkDisclaimer();
   }
 
   Future<void> _checkDisclaimer() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _disclaimerAccepted = prefs.getBool('disclaimer_accepted') ?? false;
-      _loadingDisclaimer = false;
-    });
+    if (mounted) {
+      setState(() {
+        _disclaimerAccepted = prefs.getBool('disclaimer_accepted') ?? false;
+        _loadingDisclaimer = false;
+      });
+    }
   }
 
   Future<void> _acceptDisclaimer() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('disclaimer_accepted', true);
-    setState(() => _disclaimerAccepted = true);
+    if (mounted) setState(() => _disclaimerAccepted = true);
   }
 
   @override
@@ -52,8 +56,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     return StreamBuilder<User?>(
-      stream: AuthService().authStateChanges,
+      stream: _authStream,
       builder: (context, snapshot) {
+        // High-level Auth Guard
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
@@ -63,15 +68,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
           return const LoginScreen();
         }
 
+        // Logic split: Once user is authenticated, we MUST have a profile to proceed
         return StreamBuilder<UserProfile?>(
-          stream: ProfileRepository().profileStream(),
+          stream: ProfileRepository().profileStream(user.uid),
           builder: (context, profileSnapshot) {
+            // Wait for profile data ONLY if it's the first time we're loading for this user
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
             }
 
             final profile = profileSnapshot.data;
             if (profile == null) {
+              // Redirect to onboarding if profile is missing
               return ProfileSetupScreen(uid: user.uid);
             }
 
@@ -80,6 +88,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               return MedicalDisclaimerScreen(onAccept: _acceptDisclaimer);
             }
 
+            // All guards passed: Enter main App
             return const BottomNavScreen();
           },
         );

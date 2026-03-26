@@ -49,10 +49,7 @@ class ProfileRepository {
   }
 
   /// Subscribes to profile changes for real-time suitability updates.
-  Stream<UserProfile?> profileStream() {
-    final uid = currentUid;
-    if (uid == null) return Stream.value(null);
-
+  Stream<UserProfile?> profileStream(String uid) {
     return _profiles.doc(uid).snapshots().map((snapshot) {
       if (snapshot.exists) {
         return UserProfile.fromMap(snapshot.data() as Map<String, dynamic>);

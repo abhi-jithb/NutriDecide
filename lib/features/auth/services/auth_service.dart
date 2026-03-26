@@ -3,14 +3,17 @@ import 'package:flutter/foundation.dart';
 import '../../../core/services/app_initializer.dart';
 
 /// A production-ready authentication service for NutriDecide.
-/// Handles login, logout, and auth state management.
+/// Handles login, logout, and auth state management using a singleton pattern.
 class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
-
 
   Future<UserCredential?> loginWithEmail(String email, String password) async {
     try {

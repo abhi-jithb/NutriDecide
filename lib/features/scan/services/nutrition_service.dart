@@ -24,8 +24,10 @@ class NutritionService {
     // Phase 2: Async Fallback to Cloud (Open Food Facts)
     // We only reach this if the barcode isn't in our curated 20k dataset
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/$barcode.json'))
-          .timeout(const Duration(seconds: 4)); // Strict timeout for UX
+      final response = await http.get(
+        Uri.parse('$_baseUrl/$barcode.json'),
+        headers: {'User-Agent': 'NutriDecide - Android - Version 1.0'},
+      ).timeout(const Duration(seconds: 4)); // Strict timeout for UX
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

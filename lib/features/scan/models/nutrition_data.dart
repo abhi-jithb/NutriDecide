@@ -36,17 +36,52 @@ class NutritionData {
   }
 
   /// Specialized factory for standardized local storage.
+  /// This handles both the curated 20k dataset (name, sugar, etc) 
+  /// and the Open Food Facts API cache (product_name, nutriments, etc).
   factory NutritionData.fromLocalMap(Map<String, dynamic> map) {
+    // 1. Resolve Product Name
+    final name = map['name'] ?? map['product_name'] ?? 'Unknown';
+
+    // 2. Resolve Ingredients
+    List<String> ingredients = [];
+    if (map['ingredients_text'] != null) {
+      ingredients = (map['ingredients_text'].toString()).split(',').map((e) => e.trim()).toList();
+    } else if (map['ingredients'] != null) {
+      ingredients = (map['ingredients'].toString()).split(',').map((e) => e.trim()).toList();
+    }
+
+    // 3. Resolve Nutrients (Dual-mapping)
+    final nutrients = <String, dynamic>{};
+    if (map['nutriments'] != null) {
+      nutrients.addAll(Map<String, dynamic>.from(map['nutriments']));
+    } else {
+      // Mapping from 20k dataset format to OpenFoodFacts standard
+      if (map['calories'] != null) nutrients['energy-kcal_100g'] = _toDouble(map['calories']);
+      if (map['sugar'] != null) nutrients['sugars_100g'] = _toDouble(map['sugar']);
+      if (map['sodium'] != null) nutrients['sodium_100g'] = (_toDouble(map['sodium']) ?? 0) / 1000.0;
+      if (map['saturatedFat'] != null) nutrients['saturated-fat_100g'] = _toDouble(map['saturatedFat']);
+      if (map['fiber'] != null) nutrients['fiber_100g'] = _toDouble(map['fiber']);
+      if (map['protein'] != null) nutrients['protein_100g'] = _toDouble(map['protein']);
+    }
+
     return NutritionData(
-      productName: map['product_name'] ?? 'Unknown',
-      brand: map['brands'],
+      productName: name,
+      brand: map['brands'] ?? map['brand'],
       imageUrl: map['image_url'],
-      ingredients: (map['ingredients_text'] ?? '').toString().split(',').map((e) => e.trim()).toList(),
-      nutrients: Map<String, dynamic>.from(map['nutriments'] ?? {}),
-      nutritionGrade: map['nutrition_grades'],
-      categories: List<String>.from(map['categories_tags'] ?? []),
+      ingredients: ingredients,
+      nutrients: nutrients,
+      nutritionGrade: map['nutrition_grades'] ?? map['nutrition_grade'],
+      categories: map['categories_tags'] != null 
+          ? List<String>.from(map['categories_tags']) 
+          : (map['categories'] != null ? List<String>.from(map['categories']) : []),
       confidence: _parseConfidence(map['confidence']),
     );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null || value == "") return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   factory NutritionData.fromJson(Map<String, dynamic> json) {

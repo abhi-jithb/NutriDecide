@@ -128,6 +128,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               const SizedBox(height: 24),
 
+              const Text("Gender", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: ["Male", "Female", "Other"].map((g) {
+                  return ChoiceChip(
+                    label: Text(g),
+                    selected: selectedGender == g,
+                    onSelected: (val) => setState(() => selectedGender = val ? g : null),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
               const Text("Medical Conditions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               Wrap(
@@ -183,9 +197,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 48),
               ElevatedButton(
                 onPressed: _isLoading ? null : () async {
-                  if (ageController.text.isEmpty || heightController.text.isEmpty || weightController.text.isEmpty) {
+                  if (ageController.text.isEmpty || heightController.text.isEmpty || weightController.text.isEmpty || selectedGender == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Please fill in your core measurements.")),
+                      const SnackBar(content: Text("Please fill in your core measurements and gender.")),
                     );
                     return;
                   }

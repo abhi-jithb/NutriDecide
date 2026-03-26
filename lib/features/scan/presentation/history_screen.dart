@@ -23,7 +23,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   Future<void> _loadHistory() async {
     final history = await _scanRepo.getHistory();
     setState(() {
-      _history = history.reversed.toList(); // Newest first
+      _history = history; 
       _isLoading = false;
     });
   }

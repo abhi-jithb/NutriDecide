@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../../../core/services/app_initializer.dart';
 
 /// A production-ready authentication service for NutriDecide.
 /// Handles login, logout, and auth state management.
@@ -30,7 +31,12 @@ class AuthService {
 
   Future<void> logout() async {
     try {
+      // 1. Clear session state first
+      AppInitializer().clearUserData();
+      
+      // 2. Sign out from Firebase
       await _auth.signOut();
+      debugPrint('🚪 User logged out successfully. State reset.');
     } catch (e) {
       debugPrint('❌ AuthService Logout Error: $e');
     }

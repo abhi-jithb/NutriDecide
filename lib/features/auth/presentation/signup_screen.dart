@@ -12,7 +12,6 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
-  final ageController = TextEditingController();
   final passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -21,7 +20,6 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     nameController.dispose();
     emailController.dispose();
-    ageController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -105,16 +103,6 @@ class _SignupScreenState extends State<SignupScreen> {
                             decoration: const InputDecoration(
                               hintText: "Email Address",
                               prefixIcon: Icon(Icons.email_outlined),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          TextField(
-                            controller: ageController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              hintText: "Age",
-                              prefixIcon: Icon(Icons.calendar_today_outlined),
                             ),
                           ),
                           const SizedBox(height: 20),

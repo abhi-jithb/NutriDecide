@@ -51,13 +51,18 @@ class AppInitializer {
     _currentUserProfile = await ProfileRepository().getProfile();
   }
 
+  /// Clears cache on logout to ensure data isolation.
+  void clearUserData() {
+    _currentUserProfile = null;
+    debugPrint('🧹 AppInitializer: User session data cleared.');
+  }
+
   Future<void> _safeInitFirebase() async {
     try {
       await Firebase.initializeApp();
       _isFirebaseReady = true;
     } catch (e) {
       debugPrint('❌ Firebase Initialization Failed: $e');
-      // On Android, this usually means google-services.json is missing or invalid.
       _isFirebaseReady = false;
     }
   }

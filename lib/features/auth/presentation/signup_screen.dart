@@ -187,8 +187,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                   title = "Network Connection Error";
                                   message = "Please make sure you are connected to the internet before registering.";
                                 } else if (errorMsg.contains('api-key-not-valid') || errorMsg.contains('blocked')) {
-                                  title = "Registration Blocked (Firebase)";
-                                  message = "Your Firebase project's API Key restricts this Release APK. You need to add the Release SHA-1 fingerprint to your Google Cloud Console.";
+                                  title = "App Issue";
+                                  message = "Our servers are currently rejecting this connection. Please try again later.";
+                                  debugPrint("FIREBASE_AUTH_ERROR: $errorMsg");
                                 }
 
                                 if (mounted) {

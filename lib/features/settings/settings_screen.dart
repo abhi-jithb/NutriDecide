@@ -114,6 +114,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+
+          _settingsActionTile(
+            title: "Delete Account",
+            subtitle: "Request permanent account deletion",
+            icon: Icons.person_remove_rounded,
+            isDestructive: true,
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Text("Delete Account"),
+                  content: const Text(
+                    "To completely delete your account and all associated data from our systems, please email us directly at nutridecide@gmail.com with the subject 'Account Deletion Request'.",
+                    style: TextStyle(height: 1.5),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("CLOSE"),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           
           const SizedBox(height: 48),
           Center(

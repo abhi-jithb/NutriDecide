@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/app_initializer.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/nutrition_service.dart';
@@ -163,7 +164,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _analyzeProduct(String code) async {
     try {
       final product = await _nutritionService.fetchProductData(code);
-      final profile = await _profileRepository.getProfile();
+      final profile = AppInitializer().currentUserProfile ?? await _profileRepository.getProfile();
 
       if (product == null || profile == null) {
         _showNoDataDialog(code);

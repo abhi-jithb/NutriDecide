@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_screen.dart';
 import '../services/auth_service.dart';
 
@@ -172,24 +173,31 @@ class _LoginScreenState extends State<LoginScreen>
                                       // Navigation handled by AuthWrapper
                                     } on Exception catch (e) {
                                       String errorMsg = e.toString();
-                                      String title = "Registration Error";
-                                      String message = "Login failed. Please check your network.";
+                                      String title = "Login Failed";
+                                      String message = "Please check your network connection and try again.";
                                       bool showReset = false;
+                                      bool showSignup = false;
                                       
-                                      if (errorMsg.contains('user-not-found')) {
-                                        title = "Account Not Found";
-                                        message = "No account found with this email. Would you like to sign up?";
-                                      } else if (errorMsg.contains('wrong-password')) {
-                                        title = "Incorrect Password";
-                                        message = "The password you entered is incorrect. Have you forgotten your password?";
+                                      if (errorMsg.contains('invalid-credential') || 
+                                          errorMsg.contains('user-not-found') || 
+                                          errorMsg.contains('wrong-password')) {
+                                        title = "Incorrect Email or Password";
+                                        message = "The email or password you entered is incorrect. Please check again and try again.\n\nDo you really think you have an account?";
                                         showReset = true;
+                                        showSignup = true;
                                       } else if (errorMsg.contains('invalid-email')) {
                                         title = "Invalid Email";
                                         message = "The email address you entered is not valid.";
+                                      } else if (errorMsg.contains('network-request-failed')) {
+                                        title = "Network Connection Error";
+                                        message = "Please make sure you are connected to the internet before logging in.";
+                                      } else if (errorMsg.contains('api-key-not-valid') || errorMsg.contains('blocked')) {
+                                        title = "Registration Blocked (Firebase)";
+                                        message = "Your Firebase project's API Key restricts this Release APK. You need to add the Release SHA-1 key to your Firebase Console.";
                                       }
 
                                       if (mounted) {
-                                        _showAuthError(title, message, showReset: showReset, email: email);
+                                        _showAuthError(title, message, showReset: showReset, showSignup: showSignup, email: email);
                                       }
                                     } finally {
                                       if (mounted) setState(() => _isLoading = false);
@@ -237,6 +245,19 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                
+                                // Admin Login Entry
+                                Center(
+                                  child: TextButton.icon(
+                                    onPressed: () => _showAdminLoginDialog(),
+                                    icon: Icon(Icons.admin_panel_settings_outlined, size: 16, color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
+                                    label: Text(
+                                      "Admin Portal", 
+                                      style: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 12)
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -253,7 +274,78 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _showAuthError(String title, String message, {bool showReset = false, String? email}) {
+  void _showAdminLoginDialog() {
+    final aEmailController = TextEditingController();
+    final aPasswordController = TextEditingController();
+    bool _isLocalLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.shield, color: Colors.blueGrey),
+                SizedBox(width: 8),
+                Text("Admin Login"),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Enter admin credentials to authorize management access.", style: TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: aEmailController,
+                  decoration: const InputDecoration(hintText: "Admin Email", prefixIcon: Icon(Icons.email)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: aPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(hintText: "Admin Password", prefixIcon: Icon(Icons.lock)),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: _isLocalLoading ? null : () => Navigator.pop(ctx),
+                child: const Text("CANCEL"),
+              ),
+              ElevatedButton(
+                onPressed: _isLocalLoading ? null : () async {
+                  if (aEmailController.text.isEmpty || aPasswordController.text.isEmpty) return;
+                  
+                  setDialogState(() => _isLocalLoading = true);
+                  try {
+                    final cred = await AuthService().loginWithEmail(aEmailController.text.trim(), aPasswordController.text.trim());
+                    if (cred?.user != null) {
+                      // Force admin role in firestore
+                      await FirebaseFirestore.instance.collection('users').doc(cred!.user!.uid).set({
+                        'role': 'admin'
+                      }, SetOptions(merge: true));
+                    }
+                    if (mounted) Navigator.pop(ctx); // Close dialog, AuthWrapper handles navigation
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid Admin Credentials or Network Error")));
+                  } finally {
+                    setDialogState(() => _isLocalLoading = false);
+                  }
+                },
+                child: _isLocalLoading 
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text("AUTHORIZE"),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  void _showAuthError(String title, String message, {bool showReset = false, bool showSignup = false, String? email}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -263,15 +355,23 @@ class _LoginScreenState extends State<LoginScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("CLOSE"),
+            child: const Text("CLOSE", style: TextStyle(color: Colors.grey)),
           ),
           if (showReset && email != null)
-            ElevatedButton(
+            TextButton(
               onPressed: () {
                 Navigator.pop(context);
                 _handleForgotPassword(prefilledEmail: email);
               },
               child: const Text("RESET PASSWORD"),
+            ),
+          if (showSignup)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+              },
+              child: const Text("CREATE NEW ACCOUNT"),
             ),
         ],
       ),

@@ -21,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ScanHistoryItem> _history = [];
   bool _isLoading = true;
   int _streak = 0;
+  double _dailyScore = 100.0;
+  String _dailyGoal = "";
 
   @override
   void initState() {
@@ -35,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
     
     if (profile != null) {
       _streak = HealthScoreService.getStreak(history);
+      _dailyScore = HealthScoreService.calculateDailyScore(history, profile);
+      _dailyGoal = HealthScoreService.getDailyGoal(history);
     }
     
     setState(() {
@@ -60,7 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const SizedBox(height: 32),
               _buildHeader(),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
+              _buildScoreCard(),
+              const SizedBox(height: 24),
               _buildScanButton(),
               const SizedBox(height: 48),
               if (_history.isNotEmpty) ...[
@@ -144,6 +150,73 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildScoreCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Color scoreColor = Colors.green.shade600;
+    if (_dailyScore < 80) scoreColor = Colors.orange.shade600;
+    if (_dailyScore < 50) scoreColor = Colors.red.shade600;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200
+        ),
+        boxShadow: isDark ? [] : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 80,
+            width: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: scoreColor, width: 4),
+            ),
+            child: Center(
+              child: Text(
+                _dailyScore.toInt().toString(),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: scoreColor,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Daily Health Score",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _dailyGoal,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

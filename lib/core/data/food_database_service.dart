@@ -96,11 +96,16 @@ class FoodDatabaseService {
     final rawItem = _foodBox.get(barcode);
     if (rawItem == null) return null;
 
-    final Map<String, dynamic> itemMap = Map<String, dynamic>.from(rawItem);
-    final data = NutritionData.fromLocalMap(itemMap);
-    
-    _addToCache(barcode, data);
-    return data;
+    try {
+      final Map<String, dynamic> itemMap = Map<String, dynamic>.from(rawItem);
+      final data = NutritionData.fromLocalMap(itemMap);
+      
+      _addToCache(barcode, data);
+      return data;
+    } catch (e) {
+      debugPrint('⚠️ Hive Parse Error for barcode $barcode: $e');
+      return null;
+    }
   }
 
   /// Keyword search using Hive iteration (limited for performance).

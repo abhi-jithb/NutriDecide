@@ -19,7 +19,9 @@ class ScanRepository {
     try {
       // Create a unique ID or use timestamp
       final docRef = _historyCollection(uid).doc();
-      await docRef.set(item.toMap());
+      final map = item.toMap();
+      map['timestamp'] = FieldValue.serverTimestamp();
+      await docRef.set(map);
 
       // Optional: Prune locally or via cloud function to keep last 20.
       // For now, we'll keep the full history on Firestore as it's more "Production Ready".

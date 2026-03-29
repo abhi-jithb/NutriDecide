@@ -180,29 +180,56 @@ class VerdictScreen extends StatelessWidget {
                       ),
                     ),
 
-                  Text(
-                    "Analysis Details",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onBackground,
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: color.withOpacity(0.3)),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...verdict.reasons.map((reason) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Icon(Icons.circle, size: 8, color: color),
+                            Icon(Icons.science_outlined, color: Theme.of(context).colorScheme.onSurface, size: 20),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(
-                              reason,
-                              style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
-                            )),
+                            Text(
+                              "Why we gave this verdict:",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
                           ],
                         ),
-                      )),
+                        const SizedBox(height: 12),
+                        ...verdict.reasons.map((reason) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.arrow_right_rounded, color: color, size: 24),
+                              Expanded(
+                                child: Text(
+                                  reason,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    height: 1.4,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

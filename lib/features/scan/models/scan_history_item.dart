@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ScanHistoryItem {
   final String barcode;
@@ -18,16 +19,27 @@ class ScanHistoryItem {
       'barcode': barcode,
       'productName': productName,
       'verdict': verdict,
+      // Default to ISO string, but repository will override with FieldValue.serverTimestamp()
       'timestamp': timestamp.toIso8601String(),
     };
   }
 
   factory ScanHistoryItem.fromMap(Map<String, dynamic> map) {
+    DateTime dt;
+    final ts = map['timestamp'];
+    if (ts is Timestamp) {
+      dt = ts.toDate();
+    } else if (ts is String) {
+      dt = DateTime.parse(ts);
+    } else {
+      dt = DateTime.now();
+    }
+
     return ScanHistoryItem(
       barcode: map['barcode'] ?? '',
       productName: map['productName'] ?? '',
       verdict: map['verdict'] ?? '',
-      timestamp: DateTime.parse(map['timestamp']),
+      timestamp: dt,
     );
   }
 

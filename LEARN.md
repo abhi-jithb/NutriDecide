@@ -409,6 +409,24 @@ Lightweight scan record: barcode, product name, verdict, timestamp.
 2. Add UI trigger in `AdminPanelScreen`
 3. Update `firestore.rules` if new collection access is needed
 
+## 🛠 13. Scanner State Resilience & Bug Fixes
+
+A critical architectural challenge involved intermittent "Try Again" scenarios where previously scanned products failed to load on the second application start. This was resolved through three key adjustments:
+1. **AppInitializer Profile Caching:** Rather than forcing `ProfileRepository` to execute an asynchronous Firestore query on every scan (which fails on micro network-drops during Phase 4 lookup timeouts), the app instantly accesses the local `AppInitializer().currentUserProfile`.
+2. **Hive Type Safe Casting:** Since `_foodBox.get()` returns complex nested structures as `Map<dynamic, dynamic>`, `NutritionData.fromLocalMap` was occasionally throwing silent cast exceptions. A top-level `try/catch` wrapper in `FoodDatabaseService` isolates offline storage errors from taking down the scanner.
+3. **Optimized API Timeout:** OpenFoodFacts querying was extended from `4s` to `8s` to accommodate mobile data latency before executing the "Not Found" dialog gracefully.
+
+---
+
+## 📦 14. Creating & Distributing the APK
+
+To manually build the standalone Android file for user testing outside of Google Play:
+1. Ensure flutter dependencies are clean: `flutter clean && flutter pub get`
+2. Run the release build pipeline: `flutter build apk --release`
+3. The distributable file is generated at:
+   👉 `build/app/outputs/flutter-apk/app-release.apk`
+4. **Sharing:** It can be securely distributed directly via Google Drive, WhatsApp, or email attachments. Users will need to grant "Install Unknown Apps" permissions on their Android devices when opening it.
+
 ---
 
 *This document ensures that any engineer can maintain, audit, and extend the NutriDecide ecosystem while understanding its complete data flow and architectural decisions.* 🥗

@@ -170,21 +170,48 @@ class _SignupScreenState extends State<SignupScreen> {
                                   );
                                 }
                               } on Exception catch (e) {
-                                String message = "Registration failed. Please try again.";
+                                String errorMsg = e.toString();
+                                String title = "Registration Error";
+                                String message = "Could not register account. Please check your network connection.";
                                 
-                                if (e.toString().contains('email-already-in-use')) {
-                                  message = "This email is already registered. Please sign in.";
-                                } else if (e.toString().contains('invalid-email')) {
-                                  message = "Invalid email format.";
-                                } else if (e.toString().contains('weak-password')) {
-                                  message = "The password provided is too weak.";
+                                if (errorMsg.contains('email-already-in-use')) {
+                                  title = "Account Exists";
+                                  message = "This email is already registered. Please sign in instead.";
+                                } else if (errorMsg.contains('invalid-email')) {
+                                  title = "Invalid Email";
+                                  message = "The email format is invalid.";
+                                } else if (errorMsg.contains('weak-password')) {
+                                  title = "Weak Password";
+                                  message = "Your password is too weak. Please use at least 6 characters.";
+                                } else if (errorMsg.contains('network-request-failed')) {
+                                  title = "Network Connection Error";
+                                  message = "Please make sure you are connected to the internet before registering.";
+                                } else if (errorMsg.contains('api-key-not-valid') || errorMsg.contains('blocked')) {
+                                  title = "Registration Blocked (Firebase)";
+                                  message = "Your Firebase project's API Key restricts this Release APK. You need to add the Release SHA-1 fingerprint to your Google Cloud Console.";
                                 }
 
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
                                       content: Text(message),
-                                      backgroundColor: Colors.redAccent,
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text("CLOSE", style: TextStyle(color: Colors.grey)),
+                                        ),
+                                        if (errorMsg.contains('email-already-in-use'))
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              Navigator.pop(context); // Go back to login
+                                            },
+                                            child: const Text("GO TO SIGN IN"),
+                                          ),
+                                      ],
                                     ),
                                   );
                                 }

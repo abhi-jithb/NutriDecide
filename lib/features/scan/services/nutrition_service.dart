@@ -69,7 +69,7 @@ class NutritionService {
       final response = await http.get(
         Uri.parse('$_baseUrl/$barcode.json'),
         headers: {'User-Agent': 'NutriDecide - Android - Version 1.0'},
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

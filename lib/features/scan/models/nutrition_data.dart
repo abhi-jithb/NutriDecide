@@ -21,6 +21,34 @@ class NutritionData {
     this.confidence = ConfidenceLevel.high,
   });
 
+  factory NutritionData.fromFirestore(Map<String, dynamic> map) {
+    final nutrients = <String, dynamic>{};
+    if (map['sugar'] != null) nutrients['sugars_100g'] = _toDouble(map['sugar']);
+    if (map['calories'] != null) nutrients['energy-kcal_100g'] = _toDouble(map['calories']);
+    
+    // Also handle already formatted nutrients if any (e.g. from global_products)
+    if (map['nutrients'] != null) {
+      nutrients.addAll(Map<String, dynamic>.from(map['nutrients']));
+    } else if (map['nutriments'] != null) {
+      nutrients.addAll(Map<String, dynamic>.from(map['nutriments']));
+    }
+
+    return NutritionData(
+      productName: map['name'] ?? map['product_name'] ?? 'Unknown Product',
+      brand: map['brand'] ?? map['brands'],
+      imageUrl: map['imageUrl'] ?? map['image_url'],
+      ingredients: map['ingredients'] != null 
+          ? List<String>.from(map['ingredients']) 
+          : (map['ingredients_text'] != null ? map['ingredients_text'].toString().split(',').map((e) => e.trim()).toList() : []),
+      nutrients: nutrients,
+      nutritionGrade: map['nutritionGrade'] ?? map['nutrition_grades'],
+      categories: map['category'] != null 
+          ? [map['category'].toString()] 
+          : (map['categories'] != null ? List<String>.from(map['categories']) : (map['categories_tags'] != null ? List<String>.from(map['categories_tags']) : [])),
+      confidence: _parseConfidence(map['confidence']),
+    );
+  }
+
   /// Standardizes data layout for local Hive persistence.
   Map<String, dynamic> toMap() {
     return {
@@ -34,6 +62,7 @@ class NutritionData {
       'confidence': confidence.name,
     };
   }
+
 
   /// Specialized factory for standardized local storage.
   /// This handles both the curated 20k dataset (name, sugar, etc) 

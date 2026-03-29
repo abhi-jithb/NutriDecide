@@ -1,129 +1,414 @@
-# 🎓 Master Guide: NutriDecide Core Working & Architecture (v1.5)
+# 🎓 NutriDecide — In-Depth Technical Documentation
 
-This document is the definitive technical blueprint of the NutriDecide production system. It explains **exactly how the app thinks**, the logic behind each verdict, and the specific code implementation for every core feature.
+This document is the definitive technical blueprint of the NutriDecide production system. It explains **exactly how the app thinks**, the data architecture, the admin workflow, and the specific code implementation for every core feature.
 
 ---
 
-## 🏛️ 1. Systems Overview & Workflow
+## 🏛️ 1. Systems Overview
 
-NutriDecide translates complex biochemical data (Nutrition Facts + Ingredients) into a simple, personalized verdict (**GOOD / CAUTION / AVOID**). 
+NutriDecide translates complex biochemical data (Nutrition Facts + Ingredients) into a simple, personalized verdict (**GOOD / CAUTION / AVOID**).
 
 ### **The Journey of a Scan (End-to-End)**
-1.  **Scanner Phase:** `ScanScreen` captures a barcode using `mobile_scanner`.
-2.  **Acquisition Phase:** `NutritionService` performs a **Hybrid Lookup** (Hive ➡️ OpenFoodFacts API).
-3.  **Intelligence Phase:** 
-    - `IngredientAnalyzer` parses raw strings for processing markers.
-    - `ScoringEngine` calculates a **Personalized Risk Score**.
-4.  **Verdict Phase:** `VerdictScreen` displays the result with reasons and **Safety Swaps**.
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌────────────────┐     ┌──────────────┐
+│  Scanner    │ ──▶ │  Data Acquisition │ ──▶ │  Intelligence  │ ──▶ │   Verdict    │
+│  Phase      │     │  Phase (4-layer)  │     │  Phase         │     │   Phase      │
+│             │     │                   │     │                │     │              │
+│ ScanScreen  │     │ NutritionService  │     │ Ingredient     │     │ VerdictScreen│
+│ captures    │     │ checks 4 sources  │     │ Analyzer +     │     │ displays     │
+│ barcode     │     │ in priority order │     │ ScoringEngine  │     │ result       │
+└─────────────┘     └──────────────────┘     └────────────────┘     └──────────────┘
+```
 
 ---
 
-## 🧠 2. Deep Dive: Key Code Implementations
+## 🔗 2. The Barcode-First Architecture
 
-### **A. Intelligence Engine (The "Brain")**
-Located in: `lib/features/scan/services/scoring_engine.dart`
+> **CRITICAL DESIGN DECISION:** Every product in the system is identified by its barcode. There are no auto-generated UUIDs, no random document IDs. The barcode IS the document ID across all Firestore collections.
 
-> [!IMPORTANT]
-> This is a **Weighted Risk Algorithm**. It doesn't just look at calories; it looks at how those calories interact with the user's specific medical conditions.
+### Why This Matters
+- **Deduplication is free:** `pending_products/8901234567890` can only exist once
+- **Lookup is O(1):** Direct document ID lookup, no queries needed
+- **Cross-collection consistency:** Same barcode maps to same product everywhere
+- **Future scans work instantly:** Once approved, any user scanning that barcode gets the result
 
-#### **Specific Code Explanations:**
-- **Lines 15-20 (Nutrient Extraction):** We normalize raw data from various sources into a 100g standard.
-- **Lines 23-28 (Condition-Based Weighting):** 
-  - `if (profile.hasDiabetes) sugarBase *= 2.0;`
-  - This line ensures that a product with 15g of sugar might be "CAUTION" for a normal user but an immediate "AVOID" for a diabetic.
-- **Lines 77-81 (The Allergy Blocker):** 
-  - `if (product.ingredients.any((ing) => ing.toLowerCase().contains(allergy.toLowerCase()))) { return 100.0; }`
-  - This is a fail-safe. If an ingredient matches a user's allergy, the score is immediately set to 100 (Maximum Risk/Avoid).
-- **Line 84-89 (Dietary Compliance):** Hard-coded animal-product check for Vegan profiles.
-
----
-
-### **B. Hybrid Data Acquisition (Offline First)**
-Located in: `lib/features/scan/services/nutrition_service.dart`
-
-#### **How it works:**
-1.  **Phase 1 (Local):** `fetchProductData` (Line 18) first checks `FoodDatabaseService` (Hive). This is $O(1)$ and works offline.
-2.  **Phase 2 (Cloud Fallback):** If local records fail, it triggers a `http.get` to OpenFoodFacts (Line 27) with a **4-second strict timeout**.
-3.  **Phase 3 (Active Caching):** If the API returns valid data, we automatically cross-validate it (`remoteData.isComplete` at Line 37) and save it to the local Hive database for future offline use.
+### Document ID Convention
+```
+pending_products/{barcode}    ← e.g., pending_products/8901234567890
+global_products/{barcode}     ← e.g., global_products/8901234567890
+users/{uid}/custom_products/{barcode}
+```
 
 ---
 
-### **C. Startup & Parallelization**
-Located in: `lib/core/services/app_initializer.dart`
+## 🔁 3. The 4-Phase Data Acquisition Pipeline
 
-To ensure a "Premium" feel, the app must boot in under 2 seconds.
-- **Line 28 (`Future.wait`):** We boot **Infrastructure** (DotEnv, Firebase, Hive) in parallel.
-- **Line 35 (`initializeDatabase`):** We index the curated 20,000 product JSON dataset into Hive so that first-time scans are instantaneous.
-- **Line 56 (`Firebase.initializeApp`):** Protected initialization to prevent crashes when Google Services are missing (e.g., development environments).
+**File:** `lib/features/scan/services/nutrition_service.dart`
 
----
+When a user scans a barcode, `fetchProductData(String barcode)` executes a strict priority waterfall:
 
-## 🛰️ 3. Backend Architecture (Node.js + MongoDB)
+### Phase 1: User Custom Products (Firestore)
+```dart
+final customDoc = await _firestore
+    .collection('users').doc(uid)
+    .collection('custom_products').doc(barcode)
+    .get();
+```
+- **Purpose:** Check if the current user has previously submitted this product
+- **Why first?** Gives immediate feedback for products the user themselves added
+- **Latency:** ~100-200ms (Firestore network call)
+- **Skipped if:** User not logged in (`uid == null`)
 
-Located in: `backend/`
-Hosted on: **Render.com** (Production)
+### Phase 2: Global Products (Firestore)
+```dart
+final globalDoc = await _firestore
+    .collection('global_products').doc(barcode)
+    .get();
+```
+- **Purpose:** Check if ANY admin has previously approved this barcode
+- **Why second?** This is the community-validated, trusted data source
+- **Latency:** ~100-200ms
+- **Data source:** Admin-approved products with full nutritional data
 
-### **Key Logic:**
-- **Manual Regional Food Search:** Since barcodes don't exist for "Fresh Puttu" or "Homemade Dosa," the backend serves a fuzzy-search API.
-- **Health Endpoint:** (Line 31 in `BackendService.dart`) Used for uptime monitoring and reporting connection health to the user.
-- **MongoDB Atlas:** Stores regional food data and health benchmarks that are too large for the mobile binary.
+### Phase 3: Local Hive Database
+```dart
+final localData = _dbService.getFoodByBarcode(barcode);
+```
+- **Purpose:** O(1) binary lookup against 20,000 pre-loaded Indian food products
+- **Why third?** Zero network dependency, instant response
+- **Latency:** <1ms (in-memory cache) or <50ms (disk read)
+- **Data source:** Curated `assets/data/foods_clean.json` indexed into Hive on first boot
 
----
+### Phase 4: Open Food Facts API
+```dart
+final response = await http.get(
+    Uri.parse('$_baseUrl/$barcode.json'),
+).timeout(const Duration(seconds: 4));
+```
+- **Purpose:** Last resort — global crowd-sourced food database
+- **Why last?** Requires internet, higher latency, data quality varies
+- **Timeout:** Strict 4-second cap for UX
+- **Caching:** Valid results are saved back to Hive for future offline use
 
-## 🛡️ 4. Stability & Production Decisions
-
-NutriDecide reached "Production Ready" state by **removing misleading or broken components**:
-
-| Removed Feature | Rationale | Final Code Status |
-|---|---|---|
-| **Voice Logging** | High latency and poor accuracy on low-end devices. | Entirely removed from `lib/features/voice`. |
-| **AI Coach** | Purely simulation-based; lacked true science backing. | References removed from `BottomNav` and UI. |
-| **AR Overlay** | Misleading; suggested real-time visual analysis of ingredients. | Removed from `ScanScreen`. |
-
----
-
-## 🎨 5. The Design System (Material 3)
-
-The app uses an **Adaptive Theme System** defined in `lib/core/theme/app_theme.dart`.
-
-> [!TIP]
-> **Pointing a code line:** 
-> In `lib/features/profile/profile_screen.dart`, line 38 used to be `Colors.white`. This broke Dark Mode. It was updated to `Theme.of(context).scaffoldBackgroundColor` to ensure that standard Material 3 color tokens are respected.
-
-### **Typography**
-- **Outfit:** Used for headings to give a modern, health-tech feel.
-- **Inter:** Used for body text for maximum readability of ingredient lists.
-
----
-
-## 📈 6. Production App Size & Performance
-
-As a performance-hardened application, NutriDecide is optimized for target devices with limited storage and high-speed scan requirements.
-
-### **App Size Breakdown (AAB: 55.7 MB)**
-The production bundle is optimized for the Google Play Store (App Bundle format).
-
-| Component | Estimated Size | Contribution |
-| :--- | :--- | :--- |
-| **Native Binaries** | ~42 MB | Flutter Engine + Native C++/Kotlin logic |
-| **Assets (JSON + Logos)** | 4.5 MB | 20k Product Dataset (Binary Compressed) |
-| **Dart AOT Code** | ~7 MB | Business Logic & Analysis Engine |
-
-> [!TIP]
-> **Tree-Shaking:** During the production build, we perform **Icon Tree-Shaking**. For example, `MaterialIcons` was reduced from 1.6 MB to **8.8 KB** (99.5% reduction), keeping the binary extremely lean.
-
-### **Database Performance (Hive)**
-- **Cold Boot Lookup:** < 50ms.
-- **On-Disk Size:** The 4.4 MB `foods_clean.json` is indexed into Hive on the first run, ensuring constant-time $O(1)$ lookup for barcodes without keeping the full JSON in RAM.
+### If All 4 Fail
+Returns `null` → triggers the "Product Not Found" bottom sheet with:
+- **Try Again** — restarts scanner
+- **Add Manually** — opens `ManualFoodEntryScreen` with the scanned barcode pre-populated
 
 ---
 
-## 🚀 7. Future-Proofing for Developers
+## 🧠 4. Intelligence Engine Deep Dive
 
-1.  **Adding a New Rule:** Go to `ScoringEngine.calculateRiskScore` and add a new weight condition based on `profile.conditions`.
-2.  **Expanding Local Database:** Add a new entry to `assets/data/foods_clean.json` and it will be indexed into Hive on the next app boot.
-3.  **Testing Environment:** Point `BACKEND_URL` in `.env` to `http://localhost:5000` to test regional food additions locally.
+### A. Ingredient Analyzer
+**File:** `lib/features/scan/services/ingredient_analyzer.dart`
+
+Parses raw ingredient strings for:
+- **Harmful additives:** MSG, sodium nitrate, TBHQ, BHA/BHT
+- **Refined sugars:** High fructose corn syrup, maltodextrin, dextrose
+- **Artificial sweeteners:** Aspartame, sucralose, acesulfame
+- **Processing markers:** E-numbers (E621, E211, etc.)
+
+Returns an `IngredientAnalysisResult` with boolean flags and warning messages.
+
+### B. Scoring Engine
+**File:** `lib/features/scan/services/scoring_engine.dart`
+
+Calculates a **Personalized Risk Score (0–100)** using weighted factors:
+
+| Factor | Weight | Condition Multiplier |
+|--------|--------|---------------------|
+| Sugar >15g/100g | 1.5× per gram over | 2.5× for Diabetics |
+| Sodium >400mg/100g | 2.5× per 100mg | 3.5× for Hypertension |
+| Saturated Fat >5g/100g | 2.5× per gram over | 2.0× for PCOS |
+| Calories >500kcal | +30 (weight loss) / +15 (others) | — |
+| Harmful Additives | +20 fixed | — |
+| Refined Sugars | +15 fixed | — |
+| Artificial Sweeteners | +10 (+25 for Gym Mode) | — |
+| Low Protein + High Cal | +20 (Gym Mode only) | — |
+| High Fiber | -15 bonus (max) | — |
+| High Protein (Gym) | -15 bonus (max) | — |
+| Allergen Match | **→ 100 immediately** | — |
+| Vegan Violation | **→ 100 immediately** | — |
+
+#### Verdict Mapping
+```
+Risk 0–25   → ✅ GOOD
+Risk 26–60  → ⚠️ CAUTION
+Risk 61–100 → 🚫 AVOID
+```
+
+#### Confidence Correction
+If `ConfidenceLevel == medium`, GOOD is demoted to CAUTION with explanation:
+> "Some data is missing. Verdict is conservative."
+
+### C. Confidence Level System
+**File:** `lib/features/scan/models/nutrition_data.dart`
+
+Products from different sources have different data completeness:
+
+| Level | Criteria | Verdict Impact |
+|-------|----------|---------------|
+| **HIGH** | Name + Ingredients + Nutrients + Brand | Full analysis |
+| **MEDIUM** | Name + Ingredients + Nutrients (no brand) | GOOD→CAUTION demotion |
+| **LOW** | Name + (Ingredients OR Nutrients) | Auto-AVOID |
+| **NONE** | Insufficient data | Auto-AVOID + "Safety cannot be verified" |
 
 ---
 
-*This guide ensures that any engineer can maintain, audit, and improve the NutriDecide ecosystem while maintaining its core mission of **Health Clarity.*** 🥤
+## ✍️ 5. Manual Product Entry System
+
+**File:** `lib/features/scan/presentation/manual_entry_screen.dart`
+
+### Entry Flow
+1. User scans barcode → not found in any source
+2. Bottom sheet offers "Add Manually"
+3. `ManualFoodEntryScreen` receives the scanned `barcode` as constructor parameter
+4. User fills form: Product Name*, Category*, Sugar* (0-100g), Calories (optional)
+
+### Pre-Save Validation (Duplicate Guard)
+```dart
+// Check 1: Already pending?
+final pendingDoc = await firestore.collection('pending_products').doc(barcode).get();
+if (pendingDoc.exists) → "This product has already been submitted and is awaiting review."
+
+// Check 2: Already globally approved?
+final globalDoc = await firestore.collection('global_products').doc(barcode).get();
+if (globalDoc.exists) → "This product already exists in the global database."
+```
+
+### Save Strategy (Batch Write)
+Both writes happen atomically in a single Firestore batch:
+
+```dart
+final batch = firestore.batch();
+
+// 1. For admin review
+batch.set(firestore.collection('pending_products').doc(barcode), productData);
+
+// 2. For user's immediate re-scan
+batch.set(firestore.collection('users').doc(uid)
+    .collection('custom_products').doc(barcode), productData);
+
+await batch.commit();
+```
+
+### Saved Document Structure
+```json
+{
+  "barcode": "8901234567890",
+  "name": "Maggi Noodles",
+  "category": "Snacks",
+  "sugar": 4.5,
+  "calories": 390,
+  "createdBy": "user_uid_abc123",
+  "status": "pending",
+  "timestamp": "<server_timestamp>"
+}
+```
+
+---
+
+## 🛡️ 6. Admin System
+
+### A. Role Management
+**Collection:** `users/{uid}`
+
+The `role` field in the user profile controls access:
+```dart
+class UserProfile {
+  final String role; // "user" | "admin"
+  // ... other fields
+}
+```
+
+Admin check is performed when the Settings screen loads:
+```dart
+Future<bool> isAdmin(String uid) async {
+  final doc = await _firestore.collection('users').doc(uid).get();
+  return doc.data()?['role'] == 'admin';
+}
+```
+
+The Admin Panel tile in Settings is conditionally rendered:
+```dart
+if (_isAdmin)
+  _settingsActionTile(
+    title: "Admin Panel",
+    icon: Icons.admin_panel_settings_outlined,
+    onTap: () => Navigator.push(context, MaterialPageRoute(
+      builder: (_) => const AdminPanelScreen(),
+    )),
+  ),
+```
+
+### B. Admin Panel UI
+**File:** `lib/features/admin/admin_panel_screen.dart`
+
+Two-tab interface:
+
+**Tab 1: Pending Products**
+- Real-time `StreamBuilder` listening to `pending_products` collection
+- Live count badge on tab: `"Pending (3)"` powered by Material 3 `Badge` widget
+- Each card shows: barcode, product name, category, sugar, calories
+- Two actions: **Approve** (green) and **Reject** (red outline)
+
+**Tab 2: Users**
+- Streams all documents from `users` collection
+- Shows: name, role (with amber highlight for admins), health conditions
+
+### C. Approve Workflow (Critical Path)
+```dart
+Future<void> approveProduct(Map<String, dynamic> productData, String adminId) async {
+  final barcode = productData['barcode'];
+  
+  // SAFETY: Read fresh data from Firestore (not stale stream snapshot)
+  final pendingRef = _firestore.collection('pending_products').doc(barcode);
+  final pendingSnap = await pendingRef.get();
+  if (!pendingSnap.exists) throw Exception('Pending product no longer exists');
+
+  final freshData = pendingSnap.data()!;
+  freshData['status'] = 'approved';
+  freshData['approvedBy'] = adminId;
+  freshData['approvedAt'] = FieldValue.serverTimestamp();
+
+  // Atomic batch: write to global + delete from pending
+  final batch = _firestore.batch();
+  batch.set(_firestore.collection('global_products').doc(barcode), freshData);
+  batch.delete(pendingRef);
+  await batch.commit();
+}
+```
+
+**Why fresh read?** The `productData` from the StreamBuilder might be stale if another admin acted on it. Reading the document fresh ensures we copy ALL fields without data loss.
+
+### D. Reject Workflow
+Simple delete — removes the document from `pending_products`:
+```dart
+await _firestore.collection('pending_products').doc(barcode).delete();
+```
+
+---
+
+## 🔐 7. Firestore Security Rules
+
+**File:** `firestore.rules`
+
+### Admin Detection Function
+```javascript
+function isAdmin() {
+  return request.auth != null && 
+    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+```
+
+### Rule Summary
+
+| Collection | Read | Write |
+|------------|------|-------|
+| `users/{uid}` | Owner + Admin | Owner only |
+| `users/{uid}/history/*` | Owner only | Owner only |
+| `users/{uid}/custom_products/*` | Owner only | Owner only |
+| `pending_products/{barcode}` | Admin only | Any authenticated (create only) |
+| `global_products/{barcode}` | Any authenticated | Admin only |
+
+---
+
+## 🐝 8. Hive Offline Database
+
+**File:** `lib/core/data/food_database_service.dart`
+
+### Architecture
+- **Singleton pattern** with lazy initialization
+- **One-time import:** On first boot, parses `foods_clean.json` (20k records) into Hive using `compute()` isolate to avoid jank
+- **LRU Memory Cache:** Last 100 lookups cached in-memory for sub-millisecond access
+- **Hybrid lookup chain:** Memory → Hive Disk → null
+
+### Performance Characteristics
+| Operation | Latency |
+|-----------|---------|
+| Memory cache hit | <1ms |
+| Hive disk lookup | <50ms |
+| Initial import (one-time) | ~2-4s |
+| On-disk size | ~4.4 MB |
+
+---
+
+## ⚡ 9. Startup Sequence
+
+**File:** `lib/core/services/app_initializer.dart`
+
+```
+main()
+  └── Firebase.initializeApp()
+        └── AppInitializer.initialize()
+              ├── DotEnv.load()          ─┐
+              ├── Hive.initFlutter()      ├── Future.wait() (Parallel)
+              └── FoodDB.initialize()    ─┘
+                    └── SplashScreen → AuthWrapper → BottomNavScreen
+```
+
+Target cold boot time: **<2 seconds** on mid-range devices.
+
+---
+
+## 🎨 10. Design System
+
+**File:** `lib/core/theme/app_theme.dart`
+
+- **Framework:** Material 3 with adaptive light/dark themes
+- **Typography:** Outfit (headings) + Inter (body text)
+- **Persistence:** Theme preference saved via `SharedPreferences`
+- **Toggle:** Settings screen switch → `MyApp.of(context)?.toggleTheme(value)`
+
+### Card Design Language
+- Border radius: 16-24px
+- Dark mode: subtle white borders at 5% opacity
+- Light mode: grey borders + soft drop shadows
+- Icon containers: circular with 10% opacity tinted backgrounds
+
+---
+
+## 📊 11. Data Models
+
+### NutritionData
+Core product data model with multiple factory constructors for different data sources:
+
+| Factory | Source | Use Case |
+|---------|--------|----------|
+| `fromJson()` | Open Food Facts API response | Phase 4 lookup |
+| `fromLocalMap()` | Hive stored data | Phase 3 lookup |
+| `fromFirestore()` | Firestore documents | Phase 1 & 2 lookup |
+| `toMap()` | Serialization | Saving to Hive |
+
+### UserProfile
+User health DNA with role-based access:
+- Health metrics: age, height, weight, BMI goal
+- Medical conditions: diabetes, hypertension, PCOS
+- Dietary preferences: Vegan, Vegetarian, Fitness/Gym
+- Access control: `role` field (`"user"` | `"admin"`)
+
+### ScanHistoryItem
+Lightweight scan record: barcode, product name, verdict, timestamp.
+
+---
+
+## 🚀 12. Future-Proofing
+
+### Adding a New Scoring Rule
+1. Open `scoring_engine.dart`
+2. Add a new condition block in `calculateRiskScore()`
+3. Add corresponding explanation in `generateReasons()`
+
+### Expanding the Local Database
+1. Add entries to `assets/data/foods_clean.json`
+2. Increment `_dbVersionKey` in `food_database_service.dart` to trigger re-import
+
+### Adding a New Admin Action
+1. Add method to `AdminRepository`
+2. Add UI trigger in `AdminPanelScreen`
+3. Update `firestore.rules` if new collection access is needed
+
+---
+
+*This document ensures that any engineer can maintain, audit, and extend the NutriDecide ecosystem while understanding its complete data flow and architectural decisions.* 🥗

@@ -3,6 +3,7 @@ import 'dart:convert';
 class UserProfile {
   final String? uid;
   final String? name;
+  final String role; // "user" | "admin"
   final int age;
   final double height;
   final double weight;
@@ -20,6 +21,7 @@ class UserProfile {
   UserProfile({
     this.uid,
     this.name,
+    this.role = 'user',
     required this.age,
     required this.height,
     required this.weight,
@@ -39,6 +41,7 @@ class UserProfile {
     return {
       'uid': uid,
       'name': name,
+      'role': role,
       'age': age,
       'height': height,
       'weight': weight,
@@ -59,6 +62,7 @@ class UserProfile {
     return UserProfile(
       uid: map['uid'],
       name: map['name'],
+      role: map['role'] ?? 'user',
       age: map['age'] ?? 25,
       height: (map['height'] ?? 0).toDouble(),
       weight: (map['weight'] ?? 0).toDouble(),
@@ -80,3 +84,4 @@ class UserProfile {
   factory UserProfile.fromJson(String source) =>
       UserProfile.fromMap(json.decode(source));
 }
+

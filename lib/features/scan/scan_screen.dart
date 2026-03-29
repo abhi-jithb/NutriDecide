@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/nutrition_service.dart';
 import 'presentation/verdict_screen.dart';
+import 'presentation/manual_entry_screen.dart';
 import '../profile/data/profile_repository.dart';
 import 'models/scan_history_item.dart';
 import 'data/scan_repository.dart';
@@ -213,20 +214,47 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              "We couldn't find a barcode for $code.\nWould you like to search manually?",
+              "We couldn't find data for barcode $code.\nYou can try again or add it manually.",
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 32),
+            Row(
+              children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: OutlinedButton(
                     onPressed: () {
                       Navigator.pop(context);
                       _restartScanning();
                     },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
                     child: const Text("TRY AGAIN"),
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ManualFoodEntryScreen(barcode: code),
+                        ),
+                      ).then((_) => _restartScanning());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text("ADD MANUALLY"),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

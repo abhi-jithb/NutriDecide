@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/nutrition_data.dart';
 import '../../profile/models/user_profile.dart';
 import '../../../core/data/food_database_service.dart';
@@ -10,32 +12,69 @@ import 'scoring_engine.dart';
 class NutritionService {
   static const String _baseUrl = 'https://world.openfoodfacts.org/api/v2/product';
   final FoodDatabaseService _dbService = FoodDatabaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Hybrid data acquisition flow: 
-  /// 1. Local Hive Database (Offline first, 20k foods)
-  /// 2. Remote Open Food Facts API (Live fallback)
-  /// 3. Persistence (Cache API results back to Hive for subsequent offline use)
+  /// Hybrid data acquisition flow following defined architecture:
+  /// 1. User-specific Custom Products (Firestore)
+  /// 2. Global Products (Admin Approved Firestore)
+  /// 3. Local Hive Database (Offline first, 20k foods)
+  /// 4. Remote Open Food Facts API (Live fallback)
   Future<NutritionData?> fetchProductData(String barcode) async {
-    // Phase 1: Local Optimized Lookup (O(1))
-    // This now checks both Memory and Hive Persistent store
-    final localData = _dbService.getFoodByBarcode(barcode);
-    if (localData != null) return localData;
+    final uid = _auth.currentUser?.uid;
 
-    // Phase 2: Async Fallback to Cloud (Open Food Facts)
-    // We only reach this if the barcode isn't in our curated 20k dataset
+    // Phase 1: User-specific custom products
+    if (uid != null) {
+      try {
+        final customDoc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('custom_products')
+            .doc(barcode)
+            .get();
+            
+        if (customDoc.exists) {
+          debugPrint('✅ Found in Custom Products (Firestore)');
+          return NutritionData.fromFirestore(customDoc.data()!);
+        }
+      } catch (e) {
+        debugPrint('⚠️ Custom product check failed: $e');
+      }
+    }
+
+    // Phase 2: Global admin-approved products
+    try {
+      final globalDoc = await _firestore
+          .collection('global_products')
+          .doc(barcode)
+          .get();
+          
+      if (globalDoc.exists) {
+        debugPrint('🌍 Found in Global Products (Firestore)');
+        return NutritionData.fromFirestore(globalDoc.data()!);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Global product check failed: $e');
+    }
+
+    // Phase 3: Local Hive Lookup
+    final localData = _dbService.getFoodByBarcode(barcode);
+    if (localData != null) {
+      debugPrint('📦 Found in Local Hive DB');
+      return localData;
+    }
+
+    // Phase 4: Remote API Fallback
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/$barcode.json'),
         headers: {'User-Agent': 'NutriDecide - Android - Version 1.0'},
-      ).timeout(const Duration(seconds: 4)); // Strict timeout for UX
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 1) {
           final remoteData = NutritionData.fromJson(data);
-          
-          // Phase 3: Validation & Caching
-          // Only cache and return if the product has sufficient data for analysis
           if (remoteData.isComplete) {
             await _dbService.saveFoodData(barcode, remoteData);
             return remoteData;
@@ -44,11 +83,11 @@ class NutritionService {
       }
     } catch (e) {
       debugPrint('⚠️ NutritionService: API fallback failed for $barcode: $e');
-      // Graceful failure - returns null which triggers "No data available" UI
     }
 
     return null;
   }
+
 
   /// Finds healthier alternatives for Indian products based on CATEGORY mapping.
   Future<List<NutritionData>> fetchAlternatives(NutritionData product, UserProfile profile) async {

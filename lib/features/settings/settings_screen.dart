@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nutri_decide/app.dart';
 import 'package:nutri_decide/features/auth/services/auth_service.dart';
 import 'package:nutri_decide/features/auth/presentation/login_screen.dart';
 import 'package:nutri_decide/features/auth/presentation/profile_setup_screen.dart';
+import 'package:nutri_decide/features/admin/admin_panel_screen.dart';
+import 'package:nutri_decide/core/data/admin_repository.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -22,6 +24,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
+    // Check admin status
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null) {
+      _isAdmin = await AdminRepository().isAdmin(uid);
+    }
+
     setState(() {
       _isLoading = false;
     });
@@ -63,6 +71,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+
+          // Admin Panel – Only visible if role == admin
+          if (_isAdmin)
+            _settingsActionTile(
+              title: "Admin Panel",
+              subtitle: "Review pending products & manage users",
+              icon: Icons.admin_panel_settings_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                );
+              },
+            ),
+
           _settingsActionTile(
             title: "Sign Out",
             icon: Icons.logout_rounded,
